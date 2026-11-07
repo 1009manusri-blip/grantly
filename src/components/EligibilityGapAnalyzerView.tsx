@@ -114,22 +114,6 @@ export const EligibilityGapAnalyzerView: React.FC = () => {
       .slice(0, 3);
   }, [scholarships, currentScholarship.id, profile, documents]);
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF1FF] text-[#4169E1] text-xs font-semibold mb-1 border border-blue-200/60">
-            <FileCheck2 className="w-3.5 h-3.5" />
-            <span>Signature Intelligence Feature</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172554] font-['Space_Grotesk']">
-            Eligibility Gap Analyzer
-          </h1>
-          <p className="text-xs sm:text-sm text-[#506184] mt-1">
-            Deterministic rule breakdown showing satisfied requirements, cutoff gaps, and actionable steps to unlock funding.
-          </p>
-        </div>
 
   // Mode toggle: Deep Diagnostic vs Catalogue-wide Almost Eligible Scanner
   const [viewMode, setViewMode] = useState<'diagnostic' | 'almost_eligible'>('diagnostic');
@@ -176,6 +160,7 @@ export const EligibilityGapAnalyzerView: React.FC = () => {
         missingDocsCount: number;
       }[];
   }, [scholarships, profile, documents]);
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

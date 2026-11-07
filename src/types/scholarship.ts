@@ -10,7 +10,9 @@ export type ScholarshipCategory = 'Merit-based' | 'Need-based' | 'Government' | 
 
 export type VerificationStatus = 'Official Source Verified' | 'Demo Information' | 'Verification Pending';
 
-export type PriorityLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+export type PriorityLevel = 'HIGH' | 'MEDIUM' | 'LOW' | 'EXPIRED';
+
+export type CgpaFormula = 'standard_9_5' | 'aicte_revised' | 'linear_10' | 'custom';
 
 export type JourneyStage = 'DISCOVER' | 'MATCH' | 'PREPARE' | 'APPLY' | 'SUBMITTED' | 'AWARDED';
 
@@ -89,6 +91,8 @@ export interface StudentProfile {
   institution: string;
   academicScoreType: 'percentage' | 'cgpa';
   academicScore: number;
+  cgpaFormula?: CgpaFormula;
+  customCgpaMultiplier?: number;
   prevScore12th: number;
   prevScore10th: number;
   achievements: string[];

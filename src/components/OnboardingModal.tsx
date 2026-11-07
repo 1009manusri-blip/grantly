@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { EducationLevel, StudentProfile } from '../types/scholarship';
+import { CgpaFormula, EducationLevel, StudentProfile } from '../types/scholarship';
 import {
   GraduationCap,
   Award,
@@ -14,7 +14,7 @@ import {
   Info,
   HelpCircle,
 } from 'lucide-react';
-import { evaluateScholarshipMatch } from '../utils/matching';
+import { evaluateScholarshipMatch, getCgpaFormulaLabel, normalizeToPercentage } from '../utils/matching';
 
 const EDUCATION_LEVELS: EducationLevel[] = ['Undergraduate', 'Postgraduate', 'Doctoral', 'Diploma', 'Secondary'];
 
@@ -83,12 +83,16 @@ export const OnboardingModal: React.FC = () => {
       if (!formData.degree) newErrors.degree = 'Please select or enter your degree';
       if (!formData.institution) newErrors.institution = 'Please provide your university or college name';
     } else if (s === 2) {
-      if (!formData.academicScore || formData.academicScore <= 0) {
-        newErrors.academicScore = 'Enter a valid academic score or percentage';
+      if (formData.academicScore === undefined || isNaN(formData.academicScore) || formData.academicScore <= 0) {
+        newErrors.academicScore = 'Enter a valid academic score';
+      } else if (formData.academicScoreType === 'cgpa' && formData.academicScore > 10) {
+        newErrors.academicScore = 'CGPA cannot exceed 10.0';
+      } else if (formData.academicScoreType === 'percentage' && formData.academicScore > 100) {
+        newErrors.academicScore = 'Percentage cannot exceed 100%';
       }
     } else if (s === 3) {
-      if (formData.annualFamilyIncome === undefined || formData.annualFamilyIncome < 0) {
-        newErrors.annualFamilyIncome = 'Enter your approximate family income';
+      if (formData.annualFamilyIncome === undefined || isNaN(formData.annualFamilyIncome) || formData.annualFamilyIncome < 0) {
+        newErrors.annualFamilyIncome = 'Enter a valid non-negative family income';
       }
     } else if (s === 4) {
       if (!formData.stateDomicile) newErrors.stateDomicile = 'Please select your home domicile state';
@@ -316,7 +320,7 @@ export const OnboardingModal: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <input
                     type="number"
-                    step="0.1"
+                    step="0.01"
                     min="0"
                     max={formData.academicScoreType === 'cgpa' ? '10' : '100'}
                     placeholder={formData.academicScoreType === 'cgpa' ? 'e.g. 8.5' : 'e.g. 84.5'}
@@ -324,11 +328,44 @@ export const OnboardingModal: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, academicScore: parseFloat(e.target.value) || 0 })}
                     className="w-full text-sm font-bold py-2.5 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554]"
                   />
-                  <span className="text-xs font-semibold text-slate-500">
+                  <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
                     {formData.academicScoreType === 'cgpa' ? '/ 10.0 CGPA' : '%'}
                   </span>
                 </div>
                 {errors.academicScore && <p className="text-xs text-red-500">{errors.academicScore}</p>}
+
+                {formData.academicScoreType === 'cgpa' && (
+                  <div className="space-y-2 pt-2 border-t border-blue-100">
+                    <label className="block text-[11px] font-semibold text-[#172554]">
+                      CGPA-to-Percentage Conversion Rule
+                    </label>
+                    <select
+                      value={formData.cgpaFormula || 'standard_9_5'}
+                      onChange={(e) => setFormData({ ...formData, cgpaFormula: e.target.value as CgpaFormula })}
+                      className="w-full text-xs font-medium py-2 px-2.5 rounded-xl border border-blue-200 bg-white text-[#172554]"
+                    >
+                      <option value="standard_9_5">CBSE / AICTE Standard (CGPA × 9.5)</option>
+                      <option value="aicte_revised">AICTE Revised ((CGPA - 0.75) × 10)</option>
+                      <option value="linear_10">10-Point Linear Scale (CGPA × 10 - IIT/NIT)</option>
+                      <option value="custom">Custom University Factor</option>
+                    </select>
+
+                    {formData.academicScore > 0 && (
+                      <p className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-blue-100">
+                        Converts to:{' '}
+                        <strong className="text-[#4169E1]">
+                          {normalizeToPercentage(
+                            formData.academicScore,
+                            'cgpa',
+                            formData.cgpaFormula || 'standard_9_5',
+                            formData.customCgpaMultiplier
+                          )}%
+                        </strong>{' '}
+                        <span>({getCgpaFormulaLabel(formData.cgpaFormula, formData.customCgpaMultiplier)})</span>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

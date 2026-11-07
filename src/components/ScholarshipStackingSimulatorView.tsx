@@ -137,27 +137,63 @@ export const ScholarshipStackingSimulatorView: React.FC = () => {
 
       {/* POLICY CONFLICT & RESTRICTION ALERTS */}
       {simulation.conflicts.length > 0 && (
-        <div className="p-5 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 space-y-3 shadow-xs">
-          <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <span>Dual-Funding & Regulatory Conflicts Flagged by Simulator</span>
+        <div className="p-5 rounded-2xl bg-white border border-blue-100 text-[#172554] space-y-3 shadow-xs">
+          <div className="flex items-center gap-2 font-bold text-sm text-[#172554]">
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            <span>Statutory Regulations & Institutional Compatibility Matrix</span>
           </div>
 
-          <div className="space-y-2">
-            {simulation.conflicts.map((conflict, i) => (
-              <div key={i} className="p-3.5 bg-white/90 rounded-xl border border-amber-200/80 text-xs space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#172554]">
-                    {conflict.scholarshipA} ↔ {conflict.scholarshipB}
-                  </span>
-                  <span className="text-[10px] font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">
-                    Dual Receipt Block
-                  </span>
+          <div className="space-y-2.5">
+            {simulation.conflicts.map((conflict, i) => {
+              const isBlocking = conflict.severity === 'conflict';
+              const isWarning = conflict.severity === 'warning';
+              return (
+                <div
+                  key={i}
+                  className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                    isBlocking
+                      ? 'bg-rose-50/80 border-rose-200 text-rose-950'
+                      : isWarning
+                      ? 'bg-amber-50/80 border-amber-200 text-amber-950'
+                      : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">
+                      {conflict.scholarshipA} ↔ {conflict.scholarshipB}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+                        isBlocking
+                          ? 'text-rose-700 bg-rose-100 border-rose-200'
+                          : isWarning
+                          ? 'text-amber-800 bg-amber-100 border-amber-200'
+                          : 'text-emerald-700 bg-emerald-100 border-emerald-200'
+                      }`}
+                    >
+                      {isBlocking ? 'Confirmed Conflict' : isWarning ? 'Institutional NOC Required' : 'Permitted Stacking'}
+                    </span>
+                  </div>
+                  <p className="leading-relaxed text-[11px] opacity-90">{conflict.reason}</p>
                 </div>
-                <p className="text-slate-700 leading-relaxed text-[11px]">{conflict.reason}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
+        </div>
+      )}
+
+      {/* CALCULATION ASSUMPTIONS DISCLOSURE */}
+      {simulation.assumptions && simulation.assumptions.length > 0 && (
+        <div className="p-4 rounded-2xl bg-[#F4F7FF] border border-blue-100 text-xs space-y-2">
+          <div className="flex items-center gap-2 font-bold text-[#172554] text-xs">
+            <Info className="w-4 h-4 text-[#4169E1]" />
+            <span>Simulation Modeling Assumptions & Regulatory Disclosures</span>
+          </div>
+          <ul className="list-disc list-inside space-y-1 text-slate-600 text-[11px] leading-relaxed">
+            {simulation.assumptions.map((assumption, idx) => (
+              <li key={idx}>{assumption}</li>
+            ))}
+          </ul>
         </div>
       )}
 

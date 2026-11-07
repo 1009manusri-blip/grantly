@@ -75,6 +75,11 @@ export const DiscoverView: React.FC = () => {
           return false;
         }
 
+        // Education Level filter
+        if (selectedLevel !== 'All' && !scholarship.eligibleLevels.includes(selectedLevel as any)) {
+          return false;
+        }
+
         // Eligibility filter
         if (selectedEligibility === 'eligible') {
           if (match.status !== 'ELIGIBLE' && match.status !== 'POTENTIALLY ELIGIBLE') return false;
@@ -167,14 +172,26 @@ export const DiscoverView: React.FC = () => {
           </div>
 
           <div className="sm:col-span-4 flex items-center gap-2">
-            <label className="text-xs font-semibold text-[#506184] shrink-0">Sort By:</label>
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              className="w-1/2 text-xs font-medium py-2.5 px-3 rounded-full border border-blue-100 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-[#F4F7FF]/50 text-[#172554]"
+              aria-label="Filter by Education Level"
+            >
+              <option value="All">All Levels</option>
+              <option value="Undergraduate">Undergraduate</option>
+              <option value="Postgraduate">Postgraduate</option>
+              <option value="Diploma">Diploma</option>
+              <option value="Secondary">Secondary (10/12)</option>
+            </select>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full text-xs font-medium py-2.5 px-3 rounded-full border border-blue-100 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-[#F4F7FF]/50 text-[#172554]"
+              className="w-1/2 text-xs font-medium py-2.5 px-3 rounded-full border border-blue-100 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-[#F4F7FF]/50 text-[#172554]"
+              aria-label="Sort scholarships"
             >
               <option value="match">Highest Match %</option>
-              <option value="amount">Funding Value (₹ High to Low)</option>
+              <option value="amount">Funding Value (₹)</option>
               <option value="deadline">Closing Soonest</option>
             </select>
           </div>
@@ -241,12 +258,13 @@ export const DiscoverView: React.FC = () => {
         <span>
           Showing <strong className="text-[#172554]">{filteredScholarships.length}</strong> of {scholarships.length} scholarships
         </span>
-        {(searchQuery || selectedCategory !== 'All' || selectedEligibility !== 'all') && (
+        {(searchQuery || selectedCategory !== 'All' || selectedEligibility !== 'all' || selectedLevel !== 'All') && (
           <button
             onClick={() => {
               setSearchQuery('');
               setSelectedCategory('All');
               setSelectedEligibility('all');
+              setSelectedLevel('All');
             }}
             className="text-[#4169E1] font-semibold hover:underline"
           >
@@ -270,6 +288,7 @@ export const DiscoverView: React.FC = () => {
               setSearchQuery('');
               setSelectedCategory('All');
               setSelectedEligibility('all');
+              setSelectedLevel('All');
             }}
             className="py-2.5 px-5 rounded-full bg-[#4169E1] text-white text-xs font-bold hover:bg-[#3252BF] transition-colors"
           >

@@ -555,6 +555,49 @@ export const INITIAL_SCHOLARSHIPS: Scholarship[] = [
     quotaOrDisbursals: '4,500 students funded per cycle',
     difficultyRating: 'Straightforward',
   },
+  {
+    id: 'sch-dst-inspire-fellowship-closed',
+    name: 'DST INSPIRE Fellowship (Early Cohort - Completed)',
+    provider: 'Department of Science and Technology (DST)',
+    providerType: 'Government',
+    category: 'Government',
+    amount: 80000,
+    amountType: 'Per Year',
+    amountFormatted: '₹80,000 / year',
+    deadline: '2026-08-31',
+    description: 'National innovation fellowship for university top-rankers in basic and natural sciences.',
+    longDescription:
+      'Innovation in Science Pursuit for Inspired Research (INSPIRE) scheme managed by DST. The early autumn admission cycle is now closed for evaluation.',
+    minPercentage: 85,
+    maxFamilyIncome: 1200000,
+    eligibleLevels: ['Undergraduate', 'Postgraduate'],
+    eligibleDegrees: ['B.Sc', 'M.Sc'],
+    eligibleStates: ['All'],
+    eligibleCategories: ['All'],
+    eligibleGender: 'All',
+    requiredDocuments: [
+      'University Rank Certificate',
+      'Bonafide Student Certificate',
+      'Academic Transcript / Marksheet',
+    ],
+    combinationRestrictions: {
+      allowsStacking: false,
+      stackingNotes: 'Cannot be held concurrently with other central research fellowships.',
+      conflictsWith: ['CSIR-UGC NET Fellowship', 'PMRF'],
+    },
+    applicationUrl: 'https://online-inspire.gov.in',
+    officialSourceUrl: 'https://online-inspire.gov.in',
+    lastVerifiedDate: '2026-08-10',
+    verificationStatus: 'Official Source Verified',
+    featured: false,
+    tags: ['Basic Sciences', 'DST Gov', 'Closed Window'],
+    applicationSteps: [
+      { step: 1, title: 'Portal Registration', instruction: 'Register on DST INSPIRE portal.' },
+      { step: 2, title: 'Rank Endorsement', instruction: 'Upload university 1st rank certificate signed by Registrar.' },
+    ],
+    quotaOrDisbursals: '1,000 research scholars nationwide',
+    difficultyRating: 'Extensive',
+  },
 ];
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
@@ -569,6 +612,8 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   institution: 'National Institute of Technology Karnataka (NITK)',
   academicScoreType: 'percentage',
   academicScore: 82.5,
+  cgpaFormula: 'standard_9_5',
+  customCgpaMultiplier: 9.5,
   prevScore12th: 88.0,
   prevScore10th: 93.4,
   achievements: [

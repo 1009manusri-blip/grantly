@@ -82,11 +82,24 @@ Target distance from the center bullseye corresponds directly to algorithmic mat
 
 ### C. Scholarship Stacking Simulator & Statutory Conflict Engine
 Financial planning canvas that calculates total allowable funding in Indian Rupees ($\text{₹}$). The engine evaluates:
-- **Dual-Funding Bans**: Automatically detects when two central/state government schemes prohibit concurrent receipt.
-- **Exclusivity Clauses**: Flags scholarships that prohibit any other institutional awards.
-- **Allowable Stacking**: Pairs tuition waivers (e.g. AICTE Pragati) with non-conflicting merit cash awards (e.g. Tata Trusts or Google APAC).
+- **Dual-Funding Bans**: Automatically detects when two central government schemes prohibit concurrent receipt for tuition.
+- **Regulatory Warning Matrix**: Flags combinations requiring institutional No Objection Certificates (NOC) (e.g. State-level fee concession combined with Central merit stipend).
+- **Permitted Stacking**: Pairs tuition waivers (e.g. AICTE Pragati) with non-conflicting merit cash awards (e.g. Tata Trusts or Google APAC).
+- **Calculation Assumptions Disclosure**: Explicitly discloses modeling assumptions (e.g., tuition coverage caps, verified fee receipts, institutional NOCs).
 
-### D. Document Vault & Reuse Intelligence
+### D. Multi-Formula CGPA Normalization Engine
+Unlike naive platforms that assume universal $\text{CGPA} \times 9.5$, GRANTLY supports diverse Indian higher education grade conversion standards:
+- **CBSE & Standard AICTE**: $\text{Percentage} = \text{CGPA} \times 9.5$
+- **Revised AICTE Formula**: $\text{Percentage} = (\text{CGPA} - 0.75) \times 10$
+- **Linear 10-Point Scale**: $\text{Percentage} = \text{CGPA} \times 10$ (used by IITs, NITs, and autonomous universities)
+- **Custom Institutional Multiplier**: For universities with idiosyncratic transcript backsheet conversion tables.
+- **Transparent Disclosure**: Every scholarship card discloses the exact formula applied and reminds students to verify official grade-to-percentage conversion certificates.
+
+### E. Timezone-Safe Deadline Intelligence & Urgency Categorization
+- Timezone-safe UTC midnight calculation preventing intra-day day-shift bugs.
+- Strict urgency stratification: **High Priority** (1–14 days remaining), **Medium Priority** (15–45 days remaining), **Low Priority** (>45 days remaining), and dedicated **Closed / Expired** classification (closed scholarships are never mistakenly flagged as urgent High priority).
+
+### F. Document Vault & Reuse Intelligence
 Analyzes uploaded certificates and highlights reuse opportunities across the student's saved list (e.g., *"Your Revenue Department Income Certificate is accepted by 4 saved schemes without re-issuance"*).
 
 ---
@@ -267,11 +280,11 @@ npx --yes tsx --test src/utils/matching.test.ts
 ```
 
 ### Test Coverage Highlights:
-- Verifies income ceiling rejections (e.g. ₹8.5 LPA against an ₹8.0 LPA threshold).
-- Validates academic percentage thresholds (e.g. 58% against a 60% minimum).
-- Checks degree/discipline exclusions (e.g. Humanities degree against a STEM-only grant).
-- Confirms statutory dual-government conflict detection in the stacking engine.
-- Validates proper formatting of Indian Rupees ($\text{₹}$).
+- **CGPA Conversion Normalization**: Verifies standard CBSE/AICTE 9.5, revised AICTE formula, linear 10-point scale (IIT/NIT), and custom factors with clamping and decimal rounding.
+- **Strict Ineligibility Evaluation**: Confirms that hard requirement failures (e.g. low score, high income, gender mismatch) immediately trigger `INELIGIBLE` and cap match % to $\le 35\%$, never allowing high match percentages to mask a disqualification.
+- **Statutory Stacking & Conflict Detection**: Confirms dual central tuition award blocks while preserving highest-paying award and disclosing modeling assumptions.
+- **Timezone-Safe Date Math**: Verifies countdowns, midnight normalization, and strict `EXPIRED` status mapping for past/closed deadlines.
+- **Indian Rupee Formatting**: Validates proper comma grouping and currency symbol placement ($\text{₹}$).
 
 ---
 

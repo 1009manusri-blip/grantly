@@ -26,7 +26,7 @@ export const DeadlineIntelligenceView: React.FC = () => {
     setTab,
   } = useApp();
 
-  const [activeFilter, setActiveFilter] = useState<'all' | 'high' | 'saved'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'high' | 'saved' | 'closed'>('all');
 
   // Daily action items state
   const [actionItems, setActionItems] = useState([
@@ -43,22 +43,25 @@ export const DeadlineIntelligenceView: React.FC = () => {
   };
 
   // Compute deadline intelligence
-  const deadlineList = scholarships
-    .map((sch) => {
-      const days = calculateDaysRemaining(sch.deadline);
-      const priority = getPriorityLevel(days);
-      const match = evaluateScholarshipMatch(sch, profile, documents);
-      const isSaved = savedScholarshipIds.includes(sch.id);
-      return { sch, days, priority, match, isSaved };
-    })
+  const allDeadlines = scholarships.map((sch) => {
+    const days = calculateDaysRemaining(sch.deadline);
+    const priority = getPriorityLevel(days);
+    const match = evaluateScholarshipMatch(sch, profile, documents);
+    const isSaved = savedScholarshipIds.includes(sch.id);
+    return { sch, days, priority, match, isSaved };
+  });
+
+  const urgentCount = allDeadlines.filter((d) => d.priority === 'HIGH').length;
+  const closedCount = allDeadlines.filter((d) => d.priority === 'EXPIRED').length;
+
+  const deadlineList = allDeadlines
     .filter((item) => {
       if (activeFilter === 'high') return item.priority === 'HIGH';
       if (activeFilter === 'saved') return item.isSaved;
+      if (activeFilter === 'closed') return item.priority === 'EXPIRED';
       return true;
     })
     .sort((a, b) => a.days - b.days);
-
-  const urgentCount = deadlineList.filter((d) => d.priority === 'HIGH').length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -78,7 +81,7 @@ export const DeadlineIntelligenceView: React.FC = () => {
         </div>
 
         {/* Priority Filter Tabs */}
-        <div className="flex items-center gap-1.5 p-1 bg-white border border-blue-100 rounded-xl shadow-xs self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white border border-blue-100 rounded-xl shadow-xs self-start md:self-auto">
           <button
             onClick={() => setActiveFilter('all')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -108,6 +111,16 @@ export const DeadlineIntelligenceView: React.FC = () => {
             }`}
           >
             My Saved ({savedScholarshipIds.length})
+          </button>
+          <button
+            onClick={() => setActiveFilter('closed')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              activeFilter === 'closed'
+                ? 'bg-slate-700 text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+            }`}
+          >
+            Closed / Past ({closedCount})
           </button>
         </div>
       </div>
@@ -178,14 +191,16 @@ export const DeadlineIntelligenceView: React.FC = () => {
                     <span>·</span>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                        priority === 'HIGH'
+                        priority === 'EXPIRED'
+                          ? 'bg-slate-100 text-slate-700 border border-slate-300'
+                          : priority === 'HIGH'
                           ? 'bg-red-50 text-red-700 border border-red-200'
                           : priority === 'MEDIUM'
                           ? 'bg-amber-50 text-amber-800 border border-amber-200'
                           : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                       }`}
                     >
-                      {priority} Priority
+                      {priority === 'EXPIRED' ? 'Closed' : `${priority} Priority`}
                     </span>
                     {isSaved && (
                       <span className="text-[10px] font-bold text-[#4169E1] bg-[#EAF1FF] px-2 py-0.5 rounded-full border border-blue-200/50">

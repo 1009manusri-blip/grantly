@@ -1,13 +1,57 @@
-import { CriterionCheck, MatchResult, Scholarship, StudentProfile } from '../types/scholarship';
+import { CgpaFormula, CriterionCheck, MatchResult, Scholarship, StudentProfile } from '../types/scholarship';
 
 /**
- * Normalizes CGPA to percentage roughly if needed (assuming 10-point scale: CGPA * 9.5 standard AICTE/CBSE formula)
+ * Returns a human-readable description of the CGPA conversion formula applied.
  */
-export function normalizeToPercentage(score: number, type: 'percentage' | 'cgpa'): number {
-  if (type === 'cgpa') {
-    return Math.min(100, Math.round(score * 9.5 * 10) / 10);
+export function getCgpaFormulaLabel(formula?: CgpaFormula, customMultiplier?: number): string {
+  switch (formula) {
+    case 'aicte_revised':
+      return 'AICTE Revised ((CGPA - 0.75) × 10)';
+    case 'linear_10':
+      return '10-Point Linear Scale (CGPA × 10)';
+    case 'custom':
+      return `Custom Multiplier (CGPA × ${customMultiplier && customMultiplier > 0 ? customMultiplier : 9.5})`;
+    case 'standard_9_5':
+    default:
+      return 'CBSE / AICTE Standard (CGPA × 9.5)';
   }
-  return score;
+}
+
+/**
+ * Normalizes academic score to percentage.
+ * Supports institution-specific CGPA conversion formulas:
+ * - standard_9_5: CBSE & traditional AICTE formula (CGPA * 9.5)
+ * - aicte_revised: Revised AICTE formula ((CGPA - 0.75) * 10)
+ * - linear_10: 10-point linear scale (CGPA * 10) used by IITs, NITs, and autonomous universities
+ * - custom: Custom institutional factor specified on official transcripts
+ */
+export function normalizeToPercentage(
+  score: number,
+  type: 'percentage' | 'cgpa',
+  formula: CgpaFormula = 'standard_9_5',
+  customMultiplier?: number
+): number {
+  if (type === 'cgpa') {
+    let pct = 0;
+    switch (formula) {
+      case 'aicte_revised':
+        pct = (score - 0.75) * 10;
+        break;
+      case 'linear_10':
+        pct = score * 10;
+        break;
+      case 'custom':
+        const mult = customMultiplier && customMultiplier > 0 ? customMultiplier : 9.5;
+        pct = score * mult;
+        break;
+      case 'standard_9_5':
+      default:
+        pct = score * 9.5;
+        break;
+    }
+    return Math.min(100, Math.max(0, Math.round(pct * 10) / 10));
+  }
+  return Math.min(100, Math.max(0, Math.round(score * 10) / 10));
 }
 
 /**
@@ -120,11 +164,16 @@ export function evaluateScholarshipMatch(
     });
   }
 
-  // 3. Academic Score / Percentage
+  // 3. Academic Score / Percentage with Institutional CGPA Normalization
   const academicWeight = 25;
   totalScoreWeight += academicWeight;
-  const studentPct = profile.academicScore
-    ? normalizeToPercentage(profile.academicScore, profile.academicScoreType || 'percentage')
+  const isCgpa = profile.academicScoreType === 'cgpa';
+  const formula = profile.cgpaFormula || 'standard_9_5';
+  const customMult = profile.customCgpaMultiplier;
+  const formulaLabel = isCgpa ? getCgpaFormulaLabel(formula, customMult) : 'Direct Percentage';
+
+  const studentPct = profile.academicScore !== undefined && profile.academicScore !== null
+    ? normalizeToPercentage(profile.academicScore, profile.academicScoreType || 'percentage', formula, customMult)
     : 0;
 
   if (scholarship.minPercentage === undefined || scholarship.minPercentage === 0) {
@@ -133,7 +182,7 @@ export function evaluateScholarshipMatch(
       name: 'Academic Threshold',
       status: 'satisfied',
       requirement: 'No minimum score cutoff specified',
-      studentValue: `${studentPct}%`,
+      studentValue: isCgpa ? `${profile.academicScore} CGPA (~${studentPct}%)` : `${studentPct}%`,
       message: 'No minimum score cutoff required for this scheme.',
     });
   } else if (profile.academicScore === undefined || profile.academicScore === null) {
@@ -151,8 +200,12 @@ export function evaluateScholarshipMatch(
       name: 'Academic Threshold',
       status: 'satisfied',
       requirement: `Minimum ${scholarship.minPercentage}% marks`,
-      studentValue: `${studentPct}% (${profile.academicScoreType === 'cgpa' ? profile.academicScore + ' CGPA' : profile.academicScore + '%'})`,
-      message: `Your score of ${studentPct}% comfortably exceeds the ${scholarship.minPercentage}% cutoff.`,
+      studentValue: isCgpa
+        ? `${profile.academicScore} CGPA (~${studentPct}%)`
+        : `${studentPct}%`,
+      message: isCgpa
+        ? `Your score of ${profile.academicScore} CGPA converts to ${studentPct}% using ${formulaLabel}, meeting the ${scholarship.minPercentage}% cutoff. (Verify with university grade certificate).`
+        : `Your score of ${studentPct}% comfortably exceeds the ${scholarship.minPercentage}% cutoff.`,
     });
   } else {
     hardFailures++;
@@ -160,8 +213,12 @@ export function evaluateScholarshipMatch(
       name: 'Academic Threshold',
       status: 'not_satisfied',
       requirement: `Minimum ${scholarship.minPercentage}% marks`,
-      studentValue: `${studentPct}%`,
-      message: `Current academic score (${studentPct}%) is below the mandatory ${scholarship.minPercentage}% threshold.`,
+      studentValue: isCgpa
+        ? `${profile.academicScore} CGPA (~${studentPct}%)`
+        : `${studentPct}%`,
+      message: isCgpa
+        ? `Current score of ${profile.academicScore} CGPA converts to ${studentPct}% via ${formulaLabel}, which is below the mandatory ${scholarship.minPercentage}% threshold.`
+        : `Current academic score (${studentPct}%) is below the mandatory ${scholarship.minPercentage}% threshold.`,
     });
   }
 
@@ -338,7 +395,7 @@ export function evaluateScholarshipMatch(
   }
 
   return {
-    matchPercentage: hardFailures > 0 ? Math.min(rawPercentage, 45) : rawPercentage,
+    matchPercentage: hardFailures > 0 ? Math.min(rawPercentage, 35) : rawPercentage,
     status,
     criteriaBreakdown: checks,
     explanation,

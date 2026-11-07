@@ -12,8 +12,8 @@ import {
   ShieldCheck,
   FileDown,
 } from 'lucide-react';
-import { EducationLevel, StudentProfile } from '../types/scholarship';
-import { formatINR } from '../utils/matching';
+import { CgpaFormula, EducationLevel, StudentProfile } from '../types/scholarship';
+import { formatINR, getCgpaFormulaLabel, normalizeToPercentage } from '../utils/matching';
 
 const EDUCATION_LEVELS: EducationLevel[] = ['Undergraduate', 'Postgraduate', 'Doctoral', 'Diploma', 'Secondary'];
 
@@ -35,10 +35,31 @@ export const ProfileSettingsView: React.FC = () => {
 
   const [form, setForm] = useState<StudentProfile>({ ...profile });
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
+    // Validate score bounds
+    if (form.academicScoreType === 'cgpa') {
+      if (form.academicScore < 0 || form.academicScore > 10) {
+        setErrorMessage('CGPA must be between 0.0 and 10.0');
+        return;
+      }
+    } else {
+      if (form.academicScore < 0 || form.academicScore > 100) {
+        setErrorMessage('Academic percentage must be between 0% and 100%');
+        return;
+      }
+    }
+
+    if (form.annualFamilyIncome < 0) {
+      setErrorMessage('Annual family income cannot be negative');
+      return;
+    }
+
     updateProfile(form);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
@@ -99,6 +120,13 @@ export const ProfileSettingsView: React.FC = () => {
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center gap-2 shadow-xs">
           <Check className="w-4 h-4 text-emerald-600" />
           <span>Profile changes successfully saved and re-indexed across matching algorithms!</span>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-semibold flex items-center gap-2 shadow-xs">
+          <RotateCcw className="w-4 h-4 text-rose-600" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -200,17 +228,110 @@ export const ProfileSettingsView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">
-                Latest Academic Score ({form.academicScoreType === 'cgpa' ? 'CGPA / 10' : '%'})
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={form.academicScore}
-                onChange={(e) => setForm({ ...form, academicScore: parseFloat(e.target.value) || 0 })}
-                className="w-full text-xs font-medium py-2.5 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] text-[#172554]"
-              />
+              <label className="block text-xs font-semibold text-[#172554] mb-1">Grading Scale Format</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, academicScoreType: 'percentage' })}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
+                    form.academicScoreType === 'percentage'
+                      ? 'bg-[#172554] text-white border-[#172554]'
+                      : 'bg-white text-slate-700 border-blue-200 hover:bg-[#F4F7FF]'
+                  }`}
+                >
+                  Percentage (%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, academicScoreType: 'cgpa' })}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition-all ${
+                    form.academicScoreType === 'cgpa'
+                      ? 'bg-[#172554] text-white border-[#172554]'
+                      : 'bg-white text-slate-700 border-blue-200 hover:bg-[#F4F7FF]'
+                  }`}
+                >
+                  CGPA (10-Point)
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Academic Score & CGPA Formula Selection */}
+          <div className="p-4 rounded-2xl bg-[#F4F7FF] border border-blue-100 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-[#172554] mb-1">
+                  Academic Score ({form.academicScoreType === 'cgpa' ? 'CGPA out of 10' : 'Percentage %'})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={form.academicScoreType === 'cgpa' ? '10' : '100'}
+                  value={form.academicScore}
+                  onChange={(e) => setForm({ ...form, academicScore: parseFloat(e.target.value) || 0 })}
+                  className="w-full text-xs font-medium py-2.5 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554]"
+                />
+              </div>
+
+              {form.academicScoreType === 'cgpa' && (
+                <div>
+                  <label className="block text-xs font-semibold text-[#172554] mb-1">
+                    CGPA-to-Percentage Conversion Rule
+                  </label>
+                  <select
+                    value={form.cgpaFormula || 'standard_9_5'}
+                    onChange={(e) => setForm({ ...form, cgpaFormula: e.target.value as CgpaFormula })}
+                    className="w-full text-xs font-medium py-2.5 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554]"
+                  >
+                    <option value="standard_9_5">CBSE / AICTE Standard (CGPA × 9.5)</option>
+                    <option value="aicte_revised">AICTE Revised ((CGPA - 0.75) × 10)</option>
+                    <option value="linear_10">10-Point Linear Scale (CGPA × 10 - IIT/NIT)</option>
+                    <option value="custom">Custom University Multiplier</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {form.academicScoreType === 'cgpa' && form.cgpaFormula === 'custom' && (
+              <div className="sm:w-1/2">
+                <label className="block text-xs font-semibold text-[#172554] mb-1">
+                  Custom Multiplier (specified on transcript backsheet)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="1"
+                  max="20"
+                  value={form.customCgpaMultiplier || 9.5}
+                  onChange={(e) => setForm({ ...form, customCgpaMultiplier: parseFloat(e.target.value) || 9.5 })}
+                  className="w-full text-xs font-medium py-2 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554]"
+                />
+              </div>
+            )}
+
+            {form.academicScoreType === 'cgpa' && (
+              <div className="flex items-center justify-between text-xs text-slate-600 bg-white p-3 rounded-xl border border-blue-100">
+                <span>
+                  Converted Cutoff Equivalent:{' '}
+                  <strong className="text-[#4169E1] text-sm">
+                    {normalizeToPercentage(
+                      form.academicScore,
+                      'cgpa',
+                      form.cgpaFormula || 'standard_9_5',
+                      form.customCgpaMultiplier
+                    )}
+                    %
+                  </strong>{' '}
+                  <span className="text-[11px] text-slate-400">
+                    ({getCgpaFormulaLabel(form.cgpaFormula || 'standard_9_5', form.customCgpaMultiplier)})
+                  </span>
+                </span>
+                <span className="text-[10px] text-slate-500 italic hidden sm:inline">
+                  Verify conversion factor on your official university transcript.
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -18,6 +18,8 @@ import { ScholarshipJourneyView } from './components/ScholarshipJourneyView';
 import { DocumentVaultView } from './components/DocumentVaultView';
 import { DeadlineIntelligenceView } from './components/DeadlineIntelligenceView';
 import { WhatIfExplorerView } from './components/WhatIfExplorerView';
+import { ComparisonStudioView } from './components/ComparisonStudioView';
+import { NoticeTranslatorView } from './components/NoticeTranslatorView';
 import { GrantlyAIAssistant } from './components/GrantlyAIAssistant';
 import { ProfileSettingsView } from './components/ProfileSettingsView';
 import { ScholarshipDetailModal } from './components/ScholarshipDetailModal';
@@ -63,6 +65,8 @@ const AppContent: React.FC = () => {
     <AppShell>
       {tab === 'dashboard' && <DashboardView />}
       {tab === 'discover' && <DiscoverView />}
+      {tab === 'compare' && <ComparisonStudioView />}
+      {tab === 'translator' && <NoticeTranslatorView />}
       {tab === 'radar' && <OpportunityRadarView />}
       {tab === 'analyzer' && <EligibilityGapAnalyzerView />}
       {tab === 'stacking' && <ScholarshipStackingSimulatorView />}

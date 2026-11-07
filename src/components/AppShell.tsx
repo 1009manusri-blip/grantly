@@ -22,6 +22,8 @@ import {
   Search,
   Bell,
   ArrowUpRight,
+  Scale,
+  FileText,
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -54,7 +56,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       title: 'Discovery & Intelligence',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: <Compass className="w-4 h-4" /> },
-        { id: 'discover', label: 'Discovery Catalog', icon: <Search className="w-4 h-4" />, badge: '12' },
+        { id: 'discover', label: 'Discovery Catalog', icon: <Search className="w-4 h-4" />, badge: '13' },
+        { id: 'compare', label: 'Comparison Studio', icon: <Scale className="w-4 h-4" />, badge: '5-Fit' },
+        { id: 'translator', label: 'Notice Translator', icon: <FileText className="w-4 h-4" />, badge: 'Circulars' },
         { id: 'radar', label: 'Opportunity Radar', icon: <Radar className="w-4 h-4" /> },
         { id: 'analyzer', label: 'Gap Analyzer', icon: <FileCheck2 className="w-4 h-4" /> },
         { id: 'whatif', label: 'What-If Sandbox', icon: <SlidersHorizontal className="w-4 h-4" /> },
@@ -77,6 +81,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
         return 'Student Dashboard';
       case 'discover':
         return 'Discovery Catalog';
+      case 'compare':
+        return 'Scholarship Comparison Studio';
+      case 'translator':
+        return 'Scholarship Notice Translator';
       case 'radar':
         return 'Opportunity Radar';
       case 'analyzer':

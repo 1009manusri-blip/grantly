@@ -104,6 +104,35 @@ Unlike naive platforms that assume universal $\text{CGPA} \times 9.5$, GRANTLY s
 ### F. Document Vault & Reuse Intelligence
 Analyzes uploaded certificates and highlights reuse opportunities across the student's saved list (e.g., *"Your Revenue Department Income Certificate is accepted by 4 saved schemes without re-issuance"*).
 
+### G. Scholarship Comparison Studio (5-Badge Synthesis Matrix)
+Side-by-side comparison of 2 to 5 opportunities evaluated across 12 criteria (Support Type, Payment Cadence, Fit Score, Cutoff Percentages, Income Ceilings, Missing Documents, Friction Level, Renewal Benchmarks, and Dual-Aid Bans) synthesized into 5 signature decision highlights:
+1. **Best Financial Benefit**: Maximum verified monetary award.
+2. **Best Eligibility Match**: Highest algorithmic profile criteria fit.
+3. **Least Complicated**: Low-friction application with minimal document bureaucracy.
+4. **Nearest Deadline**: Immediate application priority.
+5. **Best Overall Fit**: Multi-factor composite leader balancing grant yield and qualifying probability.
+
+### H. Scholarship Notice Translator (Deterministic Circular Intelligence)
+Directly parses dense government gazettes, university circulars, and trust notifications via deterministic regular expression extraction:
+- Extracts Scheme Title, Benefactor, Grant Amount, Academic Percentage Cutoff, Family Income Ceiling, Submission Deadlines, Mandatory Checklist, and Renewal Terms.
+- Calculates an objective extraction confidence score (0–100%).
+- Provides 1-click comparison against student profile and 3 preloaded realistic gazette notices (NSP CSSS, AICTE Pragati, Reliance CSR).
+
+### I. "Almost Eligible" Cutoff Delta Scanner
+Integrated within the Eligibility Gap Analyzer, this catalogue-wide scanner detects high-value grants just outside current parameters:
+- Pinpoints academic scores within $\le 5\%$ of cutoffs.
+- Flags household incomes within $\le \text{₹}1,00,000$ of statutory ceilings.
+- Identifies single missing documents unlockable via the Document Vault.
+- Provides 1-click "Simulate Delta in What-If Sandbox" and vetted qualified alternatives.
+
+### J. Reality Check & Fine-Print Compliance Engine
+Embedded in every scholarship Truth Card, detailing:
+- Support Disbursement Mode (`Direct Bank Transfer (DBT)`, `Tuition Fee Waiver`, `Reimbursement`, `Stipend + Equipment Allowance`).
+- Payment Cadence (`Annual`, `One-time`, `Monthly Stipend`).
+- Renewal benchmarks (minimum passing grades, absence of backlogs).
+- Institutional attendance thresholds (e.g. 75% biometric attendance).
+- Dual-aid statutory restrictions and refund liabilities.
+
 ---
 
 ## 7. Screenshots & Interface Previews
@@ -294,6 +323,8 @@ npx --yes tsx --test src/utils/matching.test.ts
 - **Safe Empty Profile Handling**: Verifies graceful handling of empty or unonboarded profiles without runtime errors.
 - **Timezone-Safe Date Math**: Verifies countdowns, midnight normalization, and strict `EXPIRED` status mapping for past/closed deadlines.
 - **Indian Rupee Formatting**: Validates proper comma grouping and currency symbol placement ($\text{₹}$).
+- **Comparison Studio 5-Badge Synthesis**: Verifies algorithmic extraction of top financial benefit, least complicated, nearest deadline, top profile fit, and best overall composite score.
+- **Notice Translator Extraction & Fallback**: Validates regex extraction of official scheme titles, cutoffs, income limits, deadlines, and safe 0% fallback on unintelligible notices.
 
 ---
 

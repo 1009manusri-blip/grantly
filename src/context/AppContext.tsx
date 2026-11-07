@@ -19,6 +19,8 @@ export type AppTab =
   | 'landing'
   | 'dashboard'
   | 'discover'
+  | 'compare'
+  | 'translator'
   | 'radar'
   | 'analyzer'
   | 'stacking'
@@ -40,6 +42,10 @@ interface AppContextType {
   removeDocument: (id: string) => void;
   savedScholarshipIds: string[];
   toggleSaveScholarship: (id: string) => void;
+  comparisonIds: string[];
+  addToComparison: (id: string) => void;
+  removeFromComparison: (id: string) => void;
+  clearComparison: () => void;
   applicationTracks: Record<string, ApplicationTrack>;
   updateApplicationStage: (scholarshipId: string, stage: JourneyStage) => void;
   updateApplicationChecklist: (scholarshipId: string, checklistId: string, completed: boolean) => void;
@@ -70,6 +76,7 @@ const STORAGE_KEYS = {
   TRACKS: 'grantly_tracks_v1',
   QUESTS: 'grantly_quests_v1',
   HAS_VISITED: 'grantly_visited_v1',
+  COMPARISON: 'grantly_comparison_v1',
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -80,7 +87,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return 'dashboard';
     }
     const tabParam = params.get('tab') as AppTab;
-    if (tabParam && ['landing', 'dashboard', 'discover', 'radar', 'analyzer', 'stacking', 'journey', 'vault', 'deadlines', 'whatif', 'assistant', 'profile'].includes(tabParam)) {
+    if (tabParam && ['landing', 'dashboard', 'discover', 'compare', 'translator', 'radar', 'analyzer', 'stacking', 'journey', 'vault', 'deadlines', 'whatif', 'assistant', 'profile'].includes(tabParam)) {
       return tabParam;
     }
     return 'landing';
@@ -121,6 +128,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return saved ? JSON.parse(saved) : DEFAULT_STUDENT_PROFILE.savedScholarshipIds;
     } catch {
       return DEFAULT_STUDENT_PROFILE.savedScholarshipIds;
+    }
+  });
+
+  // Comparison Studio Scholarship IDs (default 3 popular diverse scholarships)
+  const [comparisonIds, setComparisonIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.COMPARISON);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return ['sch-reliance-ug', 'sch-central-sector', 'sch-ffe-stem'];
+    } catch {
+      return ['sch-reliance-ug', 'sch-central-sector', 'sch-ffe-stem'];
     }
   });
 
@@ -203,6 +224,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     try {
+      localStorage.setItem(STORAGE_KEYS.COMPARISON, JSON.stringify(comparisonIds));
+    } catch {
+      // ignore
+    }
+  }, [comparisonIds]);
+
+  useEffect(() => {
+    try {
       localStorage.setItem(STORAGE_KEYS.TRACKS, JSON.stringify(applicationTracks));
     } catch {
       // ignore
@@ -237,6 +266,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return deduped;
     });
   }, [completeQuestMission]);
+
+  const addToComparison = useCallback((id: string) => {
+    setComparisonIds((prev) => {
+      if (prev.includes(id)) return prev;
+      if (prev.length >= 5) {
+        return [...prev.slice(1), id];
+      }
+      return [...prev, id];
+    });
+  }, []);
+
+  const removeFromComparison = useCallback((id: string) => {
+    setComparisonIds((prev) => prev.filter((item) => item !== id));
+  }, []);
+
+  const clearComparison = useCallback(() => {
+    setComparisonIds([]);
+  }, []);
 
   const addDocument = useCallback((doc: Omit<UserDocument, 'id' | 'uploadDate'>) => {
     const sanitizedFileName = (doc.fileName || 'Document.pdf').trim();
@@ -319,6 +366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProfile(DEFAULT_STUDENT_PROFILE);
     setDocuments(INITIAL_USER_DOCUMENTS);
     setSavedScholarshipIds(DEFAULT_STUDENT_PROFILE.savedScholarshipIds);
+    setComparisonIds(['sch-reliance-ug', 'sch-central-sector', 'sch-ffe-stem']);
     setQuestMissions(INITIAL_QUEST_MISSIONS);
     setApplicationTracks({
       'sch-reliance-ug': {
@@ -364,6 +412,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     removeDocument,
     savedScholarshipIds,
     toggleSaveScholarship,
+    comparisonIds,
+    addToComparison,
+    removeFromComparison,
+    clearComparison,
     applicationTracks,
     updateApplicationStage,
     updateApplicationChecklist,
@@ -393,6 +445,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     removeDocument,
     savedScholarshipIds,
     toggleSaveScholarship,
+    comparisonIds,
+    addToComparison,
+    removeFromComparison,
+    clearComparison,
     applicationTracks,
     updateApplicationStage,
     updateApplicationChecklist,

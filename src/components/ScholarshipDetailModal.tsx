@@ -275,6 +275,53 @@ export const ScholarshipDetailModal: React.FC = () => {
             )}
           </div>
 
+          {/* Reality Check: Fine-Print & Compliance Obligations */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/50 border border-blue-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#4169E1]" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#172554]">
+                  Reality Check: Fine-Print & Compliance Obligations
+                </h3>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-[#4169E1]">
+                {scholarship.supportType || 'Direct Bank Transfer (DBT)'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+              <div className="p-2.5 bg-white rounded-xl border border-blue-100">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Renewal Benchmark</span>
+                <span className="font-medium text-slate-800 leading-snug block mt-0.5">
+                  {scholarship.renewalConditions || 'One-time disbursed award.'}
+                </span>
+              </div>
+
+              <div className="p-2.5 bg-white rounded-xl border border-blue-100">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Attendance Norms</span>
+                <span className="font-medium text-slate-800 leading-snug block mt-0.5">
+                  {scholarship.attendanceRequirement || 'Standard institutional minimum attendance required.'}
+                </span>
+              </div>
+            </div>
+
+            {scholarship.realityCheckNotes && scholarship.realityCheckNotes.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold text-slate-700 block">
+                  Mandatory Fine-Print Clauses:
+                </span>
+                <ul className="space-y-1">
+                  {scholarship.realityCheckNotes.map((note, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed">
+                      <span className="text-[#4169E1] font-bold shrink-0">•</span>
+                      <span>{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           {/* Verification Source Metadata */}
           <div className="text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-blue-100">
             <span>Last verified on official registry: {formatDate(scholarship.lastVerifiedDate)}</span>

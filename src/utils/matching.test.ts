@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { evaluateScholarshipMatch, formatINR, getCgpaFormulaLabel, normalizeToPercentage } from './matching';
 import { simulateScholarshipStacking } from './stacking';
 import { calculateDaysRemaining, formatCountdown, getPriorityLevel } from './dates';
-import { Scholarship, StudentProfile } from '../types/scholarship';
+import { computeComparisonHighlights } from './comparison';
+import { parseScholarshipNotice, SAMPLE_SCHOLARSHIP_NOTICES } from './translator';
+import { Scholarship, StudentProfile, UserDocument } from '../types/scholarship';
 
 const mockProfile: StudentProfile = {
   id: 'student-1',
@@ -363,4 +365,72 @@ test('simulateScholarshipStacking provides optimizationStrategy recommendation o
   assert.match(result.optimizationStrategy, /National Merit High Scheme/);
   assert.match(result.optimizationStrategy, /80,000/);
 });
+
+test('computeComparisonHighlights identifies correct highlight badges across compared scholarships', () => {
+  const schLow: Scholarship = {
+    ...mockScholarship,
+    id: 'c-low',
+    name: 'Small Fellowship',
+    amount: 15000,
+    difficultyRating: 'Straightforward',
+    deadline: '2026-11-20',
+  };
+
+  const schHigh: Scholarship = {
+    ...mockScholarship,
+    id: 'c-high',
+    name: 'Mega Industry Grant',
+    amount: 250000,
+    difficultyRating: 'Extensive',
+    deadline: '2026-12-28',
+  };
+
+  const schMid: Scholarship = {
+    ...mockScholarship,
+    id: 'c-mid',
+    name: 'Balanced Award',
+    amount: 75000,
+    difficultyRating: 'Moderate',
+    deadline: '2026-11-25',
+  };
+
+  const highlights = computeComparisonHighlights([schLow, schHigh, schMid], mockProfile, []);
+
+  // 1. Best financial should be highest amount (schHigh: 250000)
+  assert.equal(highlights.bestFinancial?.id, 'c-high');
+
+  // 2. Least complicated should be easiest rating ('Straightforward' -> schLow)
+  assert.equal(highlights.leastComplicated?.id, 'c-low');
+
+  // 3. Nearest deadline should be nearest date ('2026-11-20' -> schLow)
+  assert.equal(highlights.nearestDeadline?.id, 'c-low');
+
+  // 4. Best match and Best overall should be defined
+  assert.ok(highlights.bestMatch);
+  assert.ok(highlights.bestOverall);
+});
+
+test('parseScholarshipNotice accurately extracts parameters from official notices', () => {
+  const sampleNotice = SAMPLE_SCHOLARSHIP_NOTICES[0].text; // CSSS notice
+  const extracted = parseScholarshipNotice(sampleNotice);
+
+  assert.ok(extracted.schemeTitle);
+  assert.match(extracted.schemeTitle, /Central Sector Scheme|CSSS/i);
+  assert.equal(extracted.minPercentage, 60);
+  assert.equal(extracted.maxIncome, 450000);
+  assert.ok(extracted.deadline);
+  assert.match(extracted.deadline, /2026-11-25/);
+  assert.ok(extracted.amountFormatted);
+  assert.ok(extracted.requiredDocuments.length > 0);
+  assert.ok(extracted.confidence >= 50);
+});
+
+test('parseScholarshipNotice returns safe fallback on empty or unintelligible notice', () => {
+  const extracted = parseScholarshipNotice('Lorem ipsum dolor sit amet, consectetur adipiscing elit.');
+  assert.equal(extracted.confidence, 0);
+  assert.equal(extracted.minPercentage, null);
+  assert.equal(extracted.maxIncome, null);
+  assert.equal(extracted.requiredDocuments.length, 0);
+});
+
 

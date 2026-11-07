@@ -77,6 +77,41 @@ export interface Scholarship {
   applicationSteps: ApplicationStep[];
   quotaOrDisbursals?: string;
   difficultyRating: 'Straightforward' | 'Moderate' | 'Extensive';
+  supportType?: 'Direct Financial Aid' | 'Tuition Reimbursement' | 'Tuition + Living Stipend' | 'Research Fellowship';
+  paymentFrequency?: 'One-time Disbursal' | 'Annual Installment' | 'Semester-wise Disbursal' | 'Monthly Stipend';
+  renewalConditions?: string;
+  attendanceRequirement?: string;
+  applicationMethod?: 'NSP Portal' | 'State SSP Portal' | 'Benefactor Direct Portal' | 'Institutional Offline Form';
+  realityCheckNotes?: string;
+}
+
+export interface ComparisonHighlights {
+  bestFinancial: { id: string; name: string; amountFormatted: string };
+  bestMatch: { id: string; name: string; matchPercentage: number };
+  leastComplicated: { id: string; name: string; difficulty: string; docCount: number };
+  nearestDeadline: { id: string; name: string; deadlineFormatted: string; daysRemaining: number };
+  bestOverall: { id: string; name: string; scoreReason: string };
+}
+
+export interface ExtractedNoticeData {
+  schemeName?: string;
+  schemeTitle?: string;
+  benefactor?: string;
+  amount?: number;
+  amountFormatted?: string;
+  minPercentage?: number | null;
+  maxIncome?: number | null;
+  eligibleLevel?: string;
+  deadline?: string;
+  deadlineFormatted?: string;
+  requiredDocuments: string[];
+  renewalConditions?: string;
+  applicationInstructions?: string[];
+  officialPortalUrl?: string;
+  portalLink?: string;
+  confidenceScore: number; // 0-100 based on parsed fields
+  confidence?: number;
+  rawPastedText: string;
 }
 
 export interface StudentProfile {

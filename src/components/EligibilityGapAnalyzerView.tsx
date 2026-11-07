@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   FileCheck2,
@@ -131,25 +131,220 @@ export const EligibilityGapAnalyzerView: React.FC = () => {
           </p>
         </div>
 
-        {/* Scholarship Selector Dropdown */}
-        <div className="flex items-center gap-2 self-start md:self-auto min-w-[280px]">
-          <label htmlFor="gap-analyzer-select" className="text-xs font-bold text-[#172554] shrink-0">
-            Analyze:
-          </label>
-          <select
-            id="gap-analyzer-select"
-            value={selectedId}
-            onChange={(e) => setGapAnalyzerScholarshipId(e.target.value)}
-            className="w-full text-xs font-semibold py-2.5 px-3 rounded-full border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554] shadow-xs"
+  // Mode toggle: Deep Diagnostic vs Catalogue-wide Almost Eligible Scanner
+  const [viewMode, setViewMode] = useState<'diagnostic' | 'almost_eligible'>('diagnostic');
+
+  // Almost Eligible Opportunities scanner across catalog
+  const almostEligibleList = useMemo(() => {
+    return scholarships
+      .map((s) => {
+        const m = evaluateScholarshipMatch(s, profile, documents);
+        if (m.status === 'ELIGIBLE') return null; // already fully eligible
+
+        const academicGap = (s.minPercentage || 0) - (profile.academicPercentage || 0);
+        const isCloseAcademic = academicGap > 0 && academicGap <= 5;
+
+        const incomeGap = (profile.familyIncome || 0) - (s.maxFamilyIncome || 0);
+        const isCloseIncome = incomeGap > 0 && incomeGap <= 100000;
+
+        const userDocTypes = documents.map((d) => d.type.toLowerCase());
+        const missingDocs = s.requiredDocuments.filter(
+          (req) => !userDocTypes.some((ud) => ud.includes(req.toLowerCase()) || req.toLowerCase().includes(ud))
+        );
+        const isSingleDoc = missingDocs.length === 1 && m.criteriaBreakdown.filter((c) => c.category !== 'Document').every((c) => c.status === 'satisfied');
+
+        if (isCloseAcademic || isCloseIncome || isSingleDoc || m.matchPercentage >= 65) {
+          return {
+            scholarship: s,
+            match: m,
+            academicGap: isCloseAcademic ? academicGap : null,
+            incomeGap: isCloseIncome ? incomeGap : null,
+            isSingleDoc,
+            missingDocName: isSingleDoc ? missingDocs[0] : null,
+            missingDocsCount: missingDocs.length,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as {
+        scholarship: typeof scholarships[0];
+        match: ReturnType<typeof evaluateScholarshipMatch>;
+        academicGap: number | null;
+        incomeGap: number | null;
+        isSingleDoc: boolean;
+        missingDocName: string | null;
+        missingDocsCount: number;
+      }[];
+  }, [scholarships, profile, documents]);
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAF1FF] text-[#4169E1] text-xs font-semibold mb-1 border border-blue-200/60">
+            <FileCheck2 className="w-3.5 h-3.5" />
+            <span>Signature Intelligence Feature</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172554] font-['Space_Grotesk']">
+            Eligibility Gap Analyzer & Scanner
+          </h1>
+          <p className="text-xs sm:text-sm text-[#506184] mt-1">
+            Deterministic rule breakdown showing satisfied requirements, cutoff gaps, and actionable steps to unlock funding.
+          </p>
+        </div>
+
+        {/* View Mode Switcher Pills */}
+        <div className="flex items-center gap-2 bg-[#EAF1FF]/70 p-1 rounded-2xl border border-blue-200/80">
+          <button
+            type="button"
+            onClick={() => setViewMode('diagnostic')}
+            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition ${
+              viewMode === 'diagnostic'
+                ? 'bg-[#4169E1] text-white shadow-xs'
+                : 'text-[#172554] hover:bg-white/60'
+            }`}
           >
-            {scholarships.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.amountFormatted})
-              </option>
-            ))}
-          </select>
+            Deep Diagnostic
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('almost_eligible')}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition ${
+              viewMode === 'almost_eligible'
+                ? 'bg-[#4169E1] text-white shadow-xs'
+                : 'text-[#172554] hover:bg-white/60'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Almost Eligible ({almostEligibleList.length})</span>
+          </button>
         </div>
       </div>
+
+      {viewMode === 'almost_eligible' ? (
+        /* ALMOST ELIGIBLE CATALOGUE SCANNER VIEW */
+        <div className="space-y-6 animate-fadeIn">
+          <div className="bg-gradient-to-r from-amber-500/10 via-blue-500/5 to-purple-500/10 border border-amber-200/70 rounded-3xl p-6 sm:p-8 space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-900 rounded-full text-xs font-bold">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>CUTOFF DELTA SCANNER</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-[#172554]">
+              Scholarships Just Out of Reach ({almostEligibleList.length} Opportunities Detected)
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-3xl">
+              You are within a 5% academic cutoff, ₹1 Lakh family income ceiling, or 1 missing document from qualifying for these high-value scholarships. Review exact deltas, simulate in the What-If Sandbox, or upload missing certificates to qualify.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {almostEligibleList.map(({ scholarship: s, match: m, academicGap, incomeGap, isSingleDoc, missingDocName }) => (
+              <div
+                key={s.id}
+                className="bg-white border border-blue-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-semibold text-[#4169E1] uppercase tracking-wider">
+                        {s.provider}
+                      </span>
+                      <h3 className="text-base font-bold text-[#172554] leading-snug mt-0.5">
+                        {s.name}
+                      </h3>
+                    </div>
+                    <span className="text-xs font-extrabold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 shrink-0">
+                      {m.matchPercentage}% Fit
+                    </span>
+                  </div>
+
+                  <div className="font-extrabold text-lg text-[#172554] font-['Space_Grotesk']">
+                    {s.amountFormatted}
+                  </div>
+
+                  {/* Specific Delta Badges */}
+                  <div className="space-y-2 pt-1">
+                    {academicGap !== null && (
+                      <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-2xl flex items-center justify-between text-xs">
+                        <span className="font-bold text-amber-900">
+                          Academic Cutoff Gap:
+                        </span>
+                        <span className="font-extrabold text-amber-800">
+                          Only {academicGap.toFixed(1)}% below cutoff ({profile.academicPercentage}% vs required {s.minPercentage}%)
+                        </span>
+                      </div>
+                    )}
+
+                    {incomeGap !== null && (
+                      <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl flex items-center justify-between text-xs">
+                        <span className="font-bold text-[#172554]">
+                          Household Income Delta:
+                        </span>
+                        <span className="font-extrabold text-[#4169E1]">
+                          ₹{(incomeGap / 1000).toFixed(0)}k above cutoff
+                        </span>
+                      </div>
+                    )}
+
+                    {isSingleDoc && missingDocName && (
+                      <div className="p-3 bg-purple-50/80 border border-purple-200/80 rounded-2xl flex items-center justify-between text-xs">
+                        <span className="font-bold text-purple-900">
+                          Single Missing Document:
+                        </span>
+                        <span className="font-extrabold text-purple-800 line-clamp-1 max-w-[200px]">
+                          {missingDocName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGapAnalyzerScholarshipId(s.id);
+                      setViewMode('diagnostic');
+                    }}
+                    className="py-2.5 px-3 rounded-2xl text-xs font-bold bg-[#EAF1FF] text-[#4169E1] hover:bg-[#4169E1] hover:text-white transition shadow-2xs text-center"
+                  >
+                    Deep Diagnostic →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('whatif')}
+                    className="py-2.5 px-3 rounded-2xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition text-center"
+                  >
+                    What-If Sandbox
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* SINGLE SCHOLARSHIP DEEP DIAGNOSTIC VIEW */
+        <>
+          {/* Scholarship Selector Dropdown */}
+          <div className="flex items-center justify-end gap-2">
+            <label htmlFor="gap-analyzer-select" className="text-xs font-bold text-[#172554] shrink-0">
+              Selected Scheme:
+            </label>
+            <select
+              id="gap-analyzer-select"
+              value={selectedId}
+              onChange={(e) => setGapAnalyzerScholarshipId(e.target.value)}
+              className="text-xs font-semibold py-2 px-3 rounded-2xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554] shadow-xs"
+            >
+              {scholarships.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.amountFormatted})
+                </option>
+              ))}
+            </select>
+          </div>
 
       {/* STRATEGIC ACTION ROADMAP & CROSS-SCHEME LEVERAGE */}
       <div className="bg-gradient-to-br from-[#172554] via-[#1E3A8A] to-[#2563EB] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-blue-400/20 space-y-6">
@@ -517,6 +712,8 @@ export const EligibilityGapAnalyzerView: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

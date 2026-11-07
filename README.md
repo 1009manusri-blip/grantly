@@ -81,10 +81,11 @@ Built as a custom SVG data visualization, the radar maps grants across 6 sectors
 Target distance from the center bullseye corresponds directly to algorithmic match percentage (100% center match), with interactive hover inspection and an accessible list-view fallback.
 
 ### C. Scholarship Stacking Simulator & Statutory Conflict Engine
-Financial planning canvas that calculates total allowable funding in Indian Rupees ($\text{₹}$). The engine evaluates:
-- **Dual-Funding Bans**: Automatically detects when two central government schemes prohibit concurrent receipt for tuition.
-- **Regulatory Warning Matrix**: Flags combinations requiring institutional No Objection Certificates (NOC) (e.g. State-level fee concession combined with Central merit stipend).
-- **Permitted Stacking**: Pairs tuition waivers (e.g. AICTE Pragati) with non-conflicting merit cash awards (e.g. Tata Trusts or Google APAC).
+Financial planning canvas that calculates total allowable funding in Indian Rupees ($\text{₹}$). The engine evaluates combination pairs into 4 distinct classifications:
+- **Confirmed Conflict (Red)**: Statutorily prohibited concurrent receipt (e.g. dual central government schemes claiming the same tuition expenses). The engine retains the highest-paying award.
+- **Possible Conflict (Amber)**: Combinations requiring college Principal or institutional No Objection Certificates (NOC) (e.g. State-level fee concession combined with Central merit maintenance grant).
+- **No Known Conflict (Emerald)**: Verified complementary awards with published mutual allowances (e.g. corporate CSR grant stacked with college merit fee concessions).
+- **Insufficient Information (Slate)**: Unverified combination terms or demo records lacking published gazette guidelines.
 - **Calculation Assumptions Disclosure**: Explicitly discloses modeling assumptions (e.g., tuition coverage caps, verified fee receipts, institutional NOCs).
 
 ### D. Multi-Formula CGPA Normalization Engine
@@ -93,6 +94,7 @@ Unlike naive platforms that assume universal $\text{CGPA} \times 9.5$, GRANTLY s
 - **Revised AICTE Formula**: $\text{Percentage} = (\text{CGPA} - 0.75) \times 10$
 - **Linear 10-Point Scale**: $\text{Percentage} = \text{CGPA} \times 10$ (used by IITs, NITs, and autonomous universities)
 - **Custom Institutional Multiplier**: For universities with idiosyncratic transcript backsheet conversion tables.
+- **Unknown / Unverified with Institution**: When conversion rules are unverified, GRANTLY flags academic thresholds as `missing_info` to prevent false eligibility guarantees.
 - **Transparent Disclosure**: Every scholarship card discloses the exact formula applied and reminds students to verify official grade-to-percentage conversion certificates.
 
 ### E. Timezone-Safe Deadline Intelligence & Urgency Categorization
@@ -276,13 +278,20 @@ This executes Vite's build pipeline and generates the static distribution assets
 GRANTLY features pure, deterministic business logic for scholarship matching and conflict detection. All unit tests run using Node.js's built-in test runner (`node:test`) and assertion library (`node:assert/strict`) with zero external test runner overhead:
 
 ```bash
+# Run unit test suite via npm
+npm test
+
+# Or invoke directly with tsx
 npx --yes tsx --test src/utils/matching.test.ts
 ```
 
 ### Test Coverage Highlights:
 - **CGPA Conversion Normalization**: Verifies standard CBSE/AICTE 9.5, revised AICTE formula, linear 10-point scale (IIT/NIT), and custom factors with clamping and decimal rounding.
-- **Strict Ineligibility Evaluation**: Confirms that hard requirement failures (e.g. low score, high income, gender mismatch) immediately trigger `INELIGIBLE` and cap match % to $\le 35\%$, never allowing high match percentages to mask a disqualification.
-- **Statutory Stacking & Conflict Detection**: Confirms dual central tuition award blocks while preserving highest-paying award and disclosing modeling assumptions.
+- **Unverified Formula Safety**: Confirms that unknown/unverified CGPA rules flag academic thresholds as `missing_info` and disallow false `ELIGIBLE` status until confirmed.
+- **State Domicile Verification**: Tests home state matching against regional scholarship quotas (e.g., Karnataka-specific schemes).
+- **Strict Ineligibility Evaluation**: Confirms that hard requirement failures (e.g. low score, high income, gender mismatch, wrong state) immediately trigger `INELIGIBLE` and cap match % to $\le 35\%$, never allowing high match percentages to mask a disqualification.
+- **4-Tier Stacking Conflict Engine**: Tests `Confirmed Conflict` (statutory dual-tuition blocks), `Possible Conflict` (institutional NOC required), `No Known Conflict` (verified concurrent aids), and `Insufficient Information` (demo or unverified records).
+- **Safe Empty Profile Handling**: Verifies graceful handling of empty or unonboarded profiles without runtime errors.
 - **Timezone-Safe Date Math**: Verifies countdowns, midnight normalization, and strict `EXPIRED` status mapping for past/closed deadlines.
 - **Indian Rupee Formatting**: Validates proper comma grouping and currency symbol placement ($\text{₹}$).
 
@@ -302,19 +311,20 @@ GRANTLY is built as a standards-compliant Single Page Application (SPA). It can 
 
 To enable immediate testing without requiring real bank details or government portal logins, GRANTLY ships with realistic seed data:
 
-- **Curated Dataset (12 Indian Scholarships)**:
-  1. *Reliance Foundation Undergraduate Scholarship* (₹2,00,000 / Merit-cum-Means)
-  2. *AICTE Pragati Scholarship for Girls* (₹50,000 / AICTE Tech)
-  3. *Tata Trusts Medical and Healthcare Grant* (₹1,50,000 / Healthcare)
-  4. *Central Sector Scheme of Scholarships (CSSS)* (₹20,000 / Central Govt)
-  5. *HDFC Bank Parivartan's ECSS Programme* (₹75,000 / CSR Need-based)
-  6. *Google APAC Generation Google Scholarship* (₹2,10,000 / Women in Tech)
-  7. *Foundation for Excellence (FFE) STEM Grant* (₹50,000 / Professional STEM)
-  8. *Post-Matric Scholarship Scheme for SC/ST Students* (₹60,000 / State & Central)
-  9. *S.N. Bose Scholars Program* (₹3,00,000 / International Exchange)
-  10. *Aditya Birla Capital Scholarship* (₹60,000 / Higher Education)
-  11. *Karnataka State Post-Matric Vidyasiri* (₹35,000 / State Domicile)
-  12. *Vidyasaarathi ACC Vidyasaarathi Scholarship* (₹40,000 / Corporate CSR)
+- **Curated Dataset (13 Scholarships — 12 Active, 1 Completed Cycle for Historical Verification)**:
+  1. *Reliance Foundation Undergraduate Scholarship* (₹2,00,000 / Merit-cum-Means) — Official Source Verified
+  2. *AICTE Pragati Scholarship for Girls* (₹50,000 / AICTE Tech) — Official Source Verified
+  3. *Tata Trusts Medical and Healthcare Grant* (₹1,20,000 / Healthcare) — Official Source Verified
+  4. *Central Sector Scheme of Scholarships (CSSS)* (₹20,000 / Central Govt) — Official Source Verified
+  5. *HDFC Bank Parivartan's ECSS Programme* (₹75,000 / CSR Need-based) — Official Source Verified
+  6. *Google APAC Generation Google Scholarship* (₹2,50,000 / Tech & Diversity) — Official Source Verified
+  7. *Foundation for Excellence (FFE) STEM Grant* (₹50,000 + Laptop / Professional STEM) — Official Source Verified
+  8. *Post-Matric Scholarship Scheme for SC/ST/OBC Students* (₹65,000 / Affirmative Action) — Official Source Verified
+  9. *S.N. Bose Scholars Program* (₹1,80,000 + Travel / Research Internship) — Official Source Verified
+  10. *Aditya Birla Capital Scholarship* (₹60,000 / Higher Education) — Official Source Verified
+  11. *Karnataka State Post-Matric Vidyasiri* (₹25,000 / State Domicile) — Official Source Verified
+  12. *Vidyasaarathi NSDL CSR Technical Fellowship* (₹40,000 / Corporate CSR) — Demo Information
+  13. *DST INSPIRE Fellowship (Early Cohort - Completed)* (₹80,000 / Research) — Official Source Verified (Closed deadline for historical verification)
 
 - **Default Student Profile**:
   - **Name**: Aarav Sharma

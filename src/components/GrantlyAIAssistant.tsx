@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Bot,
@@ -43,6 +43,17 @@ export const GrantlyAIAssistant: React.FC<{ isDrawer?: boolean }> = ({ isDrawer 
     setGapAnalyzerScholarshipId,
     setTab,
   } = useApp();
+
+  useEffect(() => {
+    if (!isDrawer || !showAssistantDrawer) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowAssistantDrawer(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDrawer, showAssistantDrawer, setShowAssistantDrawer]);
 
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -258,8 +269,19 @@ export const GrantlyAIAssistant: React.FC<{ isDrawer?: boolean }> = ({ isDrawer 
 
   if (isDrawer) {
     return (
-      <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 shadow-2xl border-l border-blue-100 animate-in slide-in-from-right duration-200">
-        {content}
+      <div className="fixed inset-0 z-50 flex justify-end">
+        <div
+          className="fixed inset-0 bg-[#172554]/40 backdrop-blur-xs transition-opacity"
+          onClick={() => setShowAssistantDrawer(false)}
+          aria-hidden="true"
+        />
+        <div
+          role="dialog"
+          aria-label="GRANTLY AI Scholarship Advisor"
+          className="relative z-10 w-full sm:w-96 h-full shadow-2xl border-l border-blue-100 animate-in slide-in-from-right duration-200"
+        >
+          {content}
+        </div>
       </div>
     );
   }

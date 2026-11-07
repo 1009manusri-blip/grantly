@@ -13,6 +13,8 @@ import {
   List,
   Eye,
   Sliders,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import { evaluateScholarshipMatch, formatINR } from '../utils/matching';
 import { calculateDaysRemaining, formatCountdown, getPriorityLevel } from '../utils/dates';
@@ -42,11 +44,38 @@ export const OpportunityRadarView: React.FC = () => {
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('All');
   const [selectedBlipId, setSelectedBlipId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'radar' | 'list'>('radar');
+  const [projectionMode, setProjectionMode] = useState<'match' | 'urgency' | 'amount'>('match');
+
+  // Dynamic concentric ring labels according to projection dimension
+  const ringLabels = useMemo(() => {
+    if (projectionMode === 'urgency') {
+      return [
+        { r: 210, label: '>60 Days Remaining' },
+        { r: 160, label: '≤45 Days Remaining' },
+        { r: 105, label: '≤30 Days Remaining' },
+        { r: 50, label: '≤14 Days (Urgent Call)' },
+      ];
+    }
+    if (projectionMode === 'amount') {
+      return [
+        { r: 210, label: '<₹50,000' },
+        { r: 160, label: '₹75,000+' },
+        { r: 105, label: '₹1,50,000+' },
+        { r: 50, label: '₹2,50,000+ (Premier)' },
+      ];
+    }
+    return [
+      { r: 210, label: '25% Match' },
+      { r: 160, label: '50% Match' },
+      { r: 105, label: '75% Match' },
+      { r: 50, label: '100% Target Match' },
+    ];
+  }, [projectionMode]);
 
   // Compute match & coordinates for each scholarship on the radar
   const radarPoints = useMemo(() => {
     const center = 250; // SVG center coordinate (500x500 viewport)
-    const maxRadius = 210; // Max radius for 0% match
+    const maxRadius = 210; // Max radius for outer perimeter
 
     return scholarships.map((sch, index) => {
       const match = evaluateScholarshipMatch(sch, profile, documents);
@@ -59,9 +88,20 @@ export const OpportunityRadarView: React.FC = () => {
       const angleJitter = ((index % 5) - 2) * 8;
       const angleRad = ((baseAngle + angleJitter - 90) * Math.PI) / 180;
 
-      // Radius from center: higher match % = closer to center bullseye!
-      const normalizedScore = Math.max(10, match.matchPercentage);
-      const radius = maxRadius - (normalizedScore / 100) * (maxRadius - 40);
+      // Radius from center depending on projection dimension
+      let normalizedFactor = 0.5;
+      if (projectionMode === 'match') {
+        normalizedFactor = Math.max(10, match.matchPercentage) / 100;
+      } else if (projectionMode === 'urgency') {
+        // Closer to center = closing soonest (days <= 0 => 1.0, days >= 90 => 0.1)
+        const d = Math.max(0, Math.min(90, days));
+        normalizedFactor = 1 - (d / 90);
+      } else if (projectionMode === 'amount') {
+        // Closer to center = highest funding amount (max 250,000)
+        normalizedFactor = Math.max(0.12, Math.min(1.0, sch.amount / 250000));
+      }
+
+      const radius = maxRadius - normalizedFactor * (maxRadius - 40);
 
       const x = center + radius * Math.cos(angleRad);
       const y = center + radius * Math.sin(angleRad);
@@ -75,7 +115,7 @@ export const OpportunityRadarView: React.FC = () => {
         category: sch.category,
       };
     });
-  }, [scholarships, profile, documents]);
+  }, [scholarships, profile, documents, projectionMode]);
 
   // Filtered blips based on sector selection
   const activePoints = useMemo(() => {
@@ -105,12 +145,48 @@ export const OpportunityRadarView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-[#506184] mt-1">
-            Multivariate map of higher-ed grants. Proximity to the central bullseye indicates higher algorithmic match percentage.
+            Multivariate map of higher-ed grants. Switch projection dimensions to discover opportunities by algorithmic match, closing urgency, or award scale.
           </p>
         </div>
 
-        {/* View Toggle */}
-        <div className="flex items-center gap-2">
+        {/* View Toggle & Dimension Switcher */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Dimension Switcher */}
+          <div className="flex items-center gap-1 p-1 bg-white border border-blue-100 rounded-full shadow-xs text-xs">
+            <span className="text-[10px] uppercase font-bold text-[#506184] pl-2.5 pr-1 hidden sm:inline">Metric:</span>
+            <button
+              onClick={() => setProjectionMode('match')}
+              className={`px-3 py-1.5 rounded-full font-semibold transition-all ${
+                projectionMode === 'match'
+                  ? 'bg-[#4169E1] text-white shadow-2xs font-bold'
+                  : 'text-[#506184] hover:text-[#172554]'
+              }`}
+            >
+              Match Score
+            </button>
+            <button
+              onClick={() => setProjectionMode('urgency')}
+              className={`px-3 py-1.5 rounded-full font-semibold transition-all ${
+                projectionMode === 'urgency'
+                  ? 'bg-[#4169E1] text-white shadow-2xs font-bold'
+                  : 'text-[#506184] hover:text-[#172554]'
+              }`}
+            >
+              Closing Urgency
+            </button>
+            <button
+              onClick={() => setProjectionMode('amount')}
+              className={`px-3 py-1.5 rounded-full font-semibold transition-all ${
+                projectionMode === 'amount'
+                  ? 'bg-[#4169E1] text-white shadow-2xs font-bold'
+                  : 'text-[#506184] hover:text-[#172554]'
+              }`}
+            >
+              Award Scale
+            </button>
+          </div>
+
+          {/* Scope vs List Toggle */}
           <div className="flex items-center gap-1 p-1 bg-white border border-blue-100 rounded-full shadow-xs">
             <button
               onClick={() => setViewMode('radar')}
@@ -171,13 +247,8 @@ export const OpportunityRadarView: React.FC = () => {
                 {/* Background glow circle */}
                 <circle cx="250" cy="250" r="230" fill="#1E293B" stroke="#334155" strokeWidth="1" />
 
-                {/* Concentric Match Rings */}
-                {[
-                  { r: 210, label: '25% Match' },
-                  { r: 160, label: '50% Match' },
-                  { r: 105, label: '75% Match' },
-                  { r: 50, label: '100% Match' },
-                ].map((ring, i) => (
+                {/* Concentric Projection Rings */}
+                {ringLabels.map((ring, i) => (
                   <g key={i}>
                     <circle
                       cx="250"
@@ -311,7 +382,13 @@ export const OpportunityRadarView: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5 text-blue-300">
                 <Compass className="w-3.5 h-3.5 text-[#4169E1]" />
-                <span>Center = 100% Target Match</span>
+                <span>
+                  {projectionMode === 'match'
+                    ? 'Center = 100% Target Match'
+                    : projectionMode === 'urgency'
+                    ? 'Center = Closing Soonest (Urgent)'
+                    : 'Center = Premier Grant (₹2.5L+)'}
+                </span>
               </div>
             </div>
           </div>
@@ -399,16 +476,25 @@ export const OpportunityRadarView: React.FC = () => {
                       Truth Card
                     </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setGapAnalyzerScholarshipId(inspectedBlip.scholarship.id);
-                      setTab('analyzer');
-                    }}
-                    className="w-full py-2.5 px-3 text-xs font-semibold rounded-full border border-blue-200 text-[#172554] hover:bg-[#F4F7FF] transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <FileCheck2 className="w-3.5 h-3.5 text-[#4169E1]" />
-                    <span>Open in Gap Analyzer</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        setGapAnalyzerScholarshipId(inspectedBlip.scholarship.id);
+                        setTab('analyzer');
+                      }}
+                      className="py-2.5 px-3 text-xs font-semibold rounded-full border border-blue-200 text-[#172554] hover:bg-[#F4F7FF] transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <FileCheck2 className="w-3.5 h-3.5 text-[#4169E1]" />
+                      <span>Gap Analyzer</span>
+                    </button>
+                    <button
+                      onClick={() => setTab('stacking')}
+                      className="py-2.5 px-3 text-xs font-semibold rounded-full bg-[#F4F7FF] hover:bg-[#EAF1FF] text-[#172554] border border-blue-200 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-[#4169E1]" />
+                      <span>Stack Simulator</span>
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (

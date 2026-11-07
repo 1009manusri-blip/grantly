@@ -234,6 +234,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
 
       {/* MAIN VIEWPORT CONTAINER */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Accessible Skip Link for Keyboard Users */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#4169E1] focus:text-white focus:rounded-full focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white text-xs font-bold"
+        >
+          Skip to main content
+        </a>
+
         {/* Top App Bar: Floating Pill Navigation Container with White and Soft-Blue Tint */}
         <header className="sticky top-2 sm:top-3 z-20 mx-3 sm:mx-6 lg:mx-8 my-2 sm:my-3 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-white/95 backdrop-blur-xl border border-blue-100 shadow-[0_4px_24px_rgb(65,105,225,0.05)] flex items-center justify-between transition-all duration-300">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -305,8 +313,10 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           </div>
         </header>
 
-        {/* Main Content View */}
-        <main className="flex-1 pb-16">{children}</main>
+        {/* Main Content View with Semantic ID */}
+        <main id="main-content" tabIndex={-1} className="flex-1 pb-16 focus:outline-none">
+          {children}
+        </main>
       </div>
 
       {/* MOBILE DRAWER OVERLAY */}

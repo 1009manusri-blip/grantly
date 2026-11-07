@@ -210,3 +210,157 @@ test('formatCountdown outputs accurate human-readable status', () => {
   assert.equal(formatCountdown(65), '~2 months left');
   assert.equal(formatCountdown(-9999), 'Deadline TBD');
 });
+
+test('evaluateScholarshipMatch respects state domicile requirements', () => {
+  const karnatakaScholarship: Scholarship = {
+    ...mockScholarship,
+    id: 'sch-karnataka-scheme',
+    name: 'Karnataka State Post-Matric Fee Waiver',
+    eligibleStates: ['Karnataka'],
+  };
+
+  // Profile with matching domicile 'Karnataka'
+  const matchingResult = evaluateScholarshipMatch(karnatakaScholarship, mockProfile);
+  assert.equal(matchingResult.status, 'ELIGIBLE');
+  const domicileCheck = matchingResult.criteriaBreakdown.find((c) => c.name === 'State / Domicile Eligibility');
+  assert.equal(domicileCheck?.status, 'satisfied');
+
+  // Profile with mismatched domicile 'Maharashtra'
+  const nonMatchingResult = evaluateScholarshipMatch(karnatakaScholarship, {
+    ...mockProfile,
+    stateDomicile: 'Maharashtra',
+  });
+  assert.equal(nonMatchingResult.status, 'INELIGIBLE');
+  assert.ok(nonMatchingResult.matchPercentage <= 35);
+  const failedDomicileCheck = nonMatchingResult.criteriaBreakdown.find((c) => c.name === 'State / Domicile Eligibility');
+  assert.equal(failedDomicileCheck?.status, 'not_satisfied');
+
+  // Profile with missing domicile
+  const missingDomicileResult = evaluateScholarshipMatch(karnatakaScholarship, {
+    ...mockProfile,
+    stateDomicile: undefined,
+  });
+  assert.equal(missingDomicileResult.status, 'POTENTIALLY ELIGIBLE');
+  const missingDomicileCheck = missingDomicileResult.criteriaBreakdown.find((c) => c.name === 'State / Domicile Eligibility');
+  assert.equal(missingDomicileCheck?.status, 'missing_info');
+});
+
+test('evaluateScholarshipMatch flags unverified CGPA formula as missing_info to prevent false eligibility', () => {
+  const unknownFormulaProfile: StudentProfile = {
+    ...mockProfile,
+    academicScoreType: 'cgpa',
+    academicScore: 9.2,
+    cgpaFormula: 'unknown',
+  };
+
+  const result = evaluateScholarshipMatch(mockScholarship, unknownFormulaProfile);
+  // Even with 9.2 CGPA, unknown formula cannot be guaranteed as meeting 80% cutoff without verification
+  assert.notEqual(result.status, 'ELIGIBLE');
+  assert.equal(result.status, 'POTENTIALLY ELIGIBLE');
+  const academicCheck = result.criteriaBreakdown.find((c) => c.name === 'Academic Threshold');
+  assert.equal(academicCheck?.status, 'missing_info');
+  assert.match(academicCheck?.message || '', /university conversion formula is unverified/);
+});
+
+test('evaluateScholarshipMatch handles empty or null profile safely without crashing', () => {
+  const emptyResult = evaluateScholarshipMatch(mockScholarship, null);
+  assert.equal(emptyResult.status, 'INSUFFICIENT INFORMATION');
+  assert.equal(emptyResult.matchPercentage, 0);
+  assert.equal(emptyResult.criteriaBreakdown[0].name, 'Profile Incomplete');
+
+  const partialResult = evaluateScholarshipMatch(mockScholarship, { fullName: 'Incomplete User' });
+  assert.equal(partialResult.status, 'INSUFFICIENT INFORMATION');
+  assert.equal(partialResult.matchPercentage, 0);
+});
+
+test('simulateScholarshipStacking correctly categorizes 4 severity levels', () => {
+  const centralGovt1: Scholarship = {
+    ...mockScholarship,
+    id: 'g1',
+    name: 'AICTE Pragati Scheme',
+    providerType: 'Government',
+    tags: ['National', 'AICTE'],
+    combinationRestrictions: { allowsStacking: false, stackingNotes: 'No other central scheme', conflictsWith: [] },
+  };
+
+  const centralGovt2: Scholarship = {
+    ...mockScholarship,
+    id: 'g2',
+    name: 'Central Sector Scholarship Scheme',
+    providerType: 'Government',
+    tags: ['National', 'Ministry'],
+    combinationRestrictions: { allowsStacking: false, stackingNotes: 'No other central scheme', conflictsWith: [] },
+  };
+
+  const privateA: Scholarship = {
+    ...mockScholarship,
+    id: 'p1',
+    name: 'Reliance Foundation Grant',
+    providerType: 'Private',
+    combinationRestrictions: { allowsStacking: true, stackingNotes: 'Can be held concurrently with government tuition waivers', conflictsWith: [] },
+    verificationStatus: 'Official Source Verified',
+  };
+
+  const privateB: Scholarship = {
+    ...mockScholarship,
+    id: 'p2',
+    name: 'Tata Healthcare Fellowship',
+    providerType: 'Foundation',
+    combinationRestrictions: { allowsStacking: true, stackingNotes: 'Stacks concurrently with college concessions', conflictsWith: [] },
+    verificationStatus: 'Official Source Verified',
+  };
+
+  const demoScholarship: Scholarship = {
+    ...mockScholarship,
+    id: 'd1',
+    name: 'Corporate Demo Aid',
+    providerType: 'Private',
+    combinationRestrictions: { allowsStacking: true, stackingNotes: '', conflictsWith: [] },
+    verificationStatus: 'Demo Information',
+  };
+
+  // 1. Confirmed conflict between dual central govt schemes
+  const conflictResult = simulateScholarshipStacking([centralGovt1, centralGovt2]);
+  assert.equal(conflictResult.hasBlockingConflicts, true);
+  assert.equal(conflictResult.conflicts[0].severity, 'conflict');
+  assert.equal(conflictResult.conflicts[0].statusLabel, 'Confirmed Conflict');
+
+  // 2. No known conflict between complementary private foundation grants with explicit concurrent rules
+  const infoResult = simulateScholarshipStacking([privateA, privateB]);
+  assert.equal(infoResult.hasBlockingConflicts, false);
+  assert.equal(infoResult.conflicts[0].severity, 'info');
+  assert.equal(infoResult.conflicts[0].statusLabel, 'No Known Conflict');
+
+  // 3. Insufficient info when pairing with Demo Information
+  const demoResult = simulateScholarshipStacking([privateA, demoScholarship]);
+  assert.ok(demoResult.conflicts.some((c) => c.severity === 'insufficient_info' && c.statusLabel === 'Insufficient Information'));
+});
+
+test('simulateScholarshipStacking provides optimizationStrategy recommendation on conflicting schemes', () => {
+  const higherGovt: Scholarship = {
+    ...mockScholarship,
+    id: 'g-high',
+    name: 'National Merit High Scheme',
+    providerType: 'Government',
+    amount: 80000,
+    tags: ['National'],
+    combinationRestrictions: { allowsStacking: false, stackingNotes: 'No other central scheme', conflictsWith: [] },
+  };
+
+  const lowerGovt: Scholarship = {
+    ...mockScholarship,
+    id: 'g-low',
+    name: 'State Central Subsidiary Scheme',
+    providerType: 'Government',
+    amount: 25000,
+    tags: ['National'],
+    combinationRestrictions: { allowsStacking: false, stackingNotes: 'No other central scheme', conflictsWith: [] },
+  };
+
+  const result = simulateScholarshipStacking([higherGovt, lowerGovt]);
+  assert.equal(result.hasBlockingConflicts, true);
+  assert.ok(result.optimizationStrategy);
+  assert.match(result.optimizationStrategy, /National Merit High Scheme/);
+  assert.match(result.optimizationStrategy, /80,000/);
+});
+

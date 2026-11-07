@@ -11,6 +11,8 @@ export function getCgpaFormulaLabel(formula?: CgpaFormula, customMultiplier?: nu
       return '10-Point Linear Scale (CGPA × 10)';
     case 'custom':
       return `Custom Multiplier (CGPA × ${customMultiplier && customMultiplier > 0 ? customMultiplier : 9.5})`;
+    case 'unknown':
+      return 'Unknown / Unverified with Institution';
     case 'standard_9_5':
     default:
       return 'CBSE / AICTE Standard (CGPA × 9.5)';
@@ -172,7 +174,9 @@ export function evaluateScholarshipMatch(
   const customMult = profile.customCgpaMultiplier;
   const formulaLabel = isCgpa ? getCgpaFormulaLabel(formula, customMult) : 'Direct Percentage';
 
-  const studentPct = profile.academicScore !== undefined && profile.academicScore !== null
+  const isFormulaUnknown = isCgpa && formula === 'unknown';
+
+  const studentPct = profile.academicScore !== undefined && profile.academicScore !== null && !isFormulaUnknown
     ? normalizeToPercentage(profile.academicScore, profile.academicScoreType || 'percentage', formula, customMult)
     : 0;
 
@@ -182,7 +186,7 @@ export function evaluateScholarshipMatch(
       name: 'Academic Threshold',
       status: 'satisfied',
       requirement: 'No minimum score cutoff specified',
-      studentValue: isCgpa ? `${profile.academicScore} CGPA (~${studentPct}%)` : `${studentPct}%`,
+      studentValue: isCgpa ? `${profile.academicScore} CGPA` : `${studentPct}%`,
       message: 'No minimum score cutoff required for this scheme.',
     });
   } else if (profile.academicScore === undefined || profile.academicScore === null) {
@@ -193,6 +197,16 @@ export function evaluateScholarshipMatch(
       requirement: `Minimum ${scholarship.minPercentage}% marks required`,
       studentValue: 'Not provided',
       message: 'Add your latest academic percentage/CGPA in profile.',
+    });
+  } else if (isFormulaUnknown) {
+    // Official conversion rule is unverified - cannot guarantee eligibility
+    missingCount++;
+    checks.push({
+      name: 'Academic Threshold',
+      status: 'missing_info',
+      requirement: `Minimum ${scholarship.minPercentage}% marks required`,
+      studentValue: `${profile.academicScore} CGPA (Conversion unverified)`,
+      message: `Your score is recorded as ${profile.academicScore} CGPA, but your university conversion formula is unverified. Cannot confirm if you meet the ${scholarship.minPercentage}% cutoff without verified grade conversion rules.`,
     });
   } else if (studentPct >= scholarship.minPercentage) {
     earnedScoreWeight += academicWeight;
@@ -263,7 +277,53 @@ export function evaluateScholarshipMatch(
     });
   }
 
-  // 5. Gender Eligibility
+  // 5. State / Domicile Eligibility
+  const domicileWeight = 15;
+  totalScoreWeight += domicileWeight;
+  const requiresSpecificState =
+    scholarship.eligibleStates &&
+    !scholarship.eligibleStates.includes('All') &&
+    scholarship.eligibleStates.length > 0;
+
+  if (!requiresSpecificState) {
+    earnedScoreWeight += domicileWeight;
+    checks.push({
+      name: 'State / Domicile Eligibility',
+      status: 'satisfied',
+      requirement: 'Open to all Indian States & UTs',
+      studentValue: profile.stateDomicile || 'Not specified',
+      message: 'National open scheme with no single-state domicile restriction.',
+    });
+  } else if (profile.stateDomicile && scholarship.eligibleStates!.includes(profile.stateDomicile)) {
+    earnedScoreWeight += domicileWeight;
+    checks.push({
+      name: 'State / Domicile Eligibility',
+      status: 'satisfied',
+      requirement: `Domicile of: ${scholarship.eligibleStates!.join(', ')}`,
+      studentValue: profile.stateDomicile,
+      message: `Your home state domicile (${profile.stateDomicile}) qualifies for this regional scheme.`,
+    });
+  } else if (!profile.stateDomicile) {
+    missingCount++;
+    checks.push({
+      name: 'State / Domicile Eligibility',
+      status: 'missing_info',
+      requirement: `Domicile of: ${scholarship.eligibleStates!.join(', ')}`,
+      studentValue: 'Not specified',
+      message: 'Home state domicile information required in profile.',
+    });
+  } else {
+    hardFailures++;
+    checks.push({
+      name: 'State / Domicile Eligibility',
+      status: 'not_satisfied',
+      requirement: `Domicile of: ${scholarship.eligibleStates!.join(', ')}`,
+      studentValue: profile.stateDomicile,
+      message: `Restricted to residents of ${scholarship.eligibleStates!.join(', ')}. Your registered domicile is ${profile.stateDomicile}.`,
+    });
+  }
+
+  // 6. Gender Eligibility
   const genderWeight = 10;
   totalScoreWeight += genderWeight;
   if (!scholarship.eligibleGender || scholarship.eligibleGender === 'All') {
@@ -304,7 +364,7 @@ export function evaluateScholarshipMatch(
     });
   }
 
-  // 6. Social Category / Domicile State
+  // 7. Social Category / Quota
   const categoryWeight = 10;
   totalScoreWeight += categoryWeight;
   const requiresSpecialCategory =

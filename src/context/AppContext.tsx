@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   ApplicationTrack,
   JourneyStage,
@@ -217,35 +217,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [questMissions]);
 
-  const updateProfile = (newProfile: StudentProfile) => {
-    setProfile(newProfile);
-  };
+  const completeQuestMission = useCallback((id: string) => {
+    setQuestMissions((prev) =>
+      prev.map((q) => (q.id === id ? { ...q, completed: true } : q))
+    );
+  }, []);
 
-  const toggleSaveScholarship = (id: string) => {
+  const updateProfile = useCallback((newProfile: StudentProfile) => {
+    setProfile(newProfile);
+  }, []);
+
+  const toggleSaveScholarship = useCallback((id: string) => {
     setSavedScholarshipIds((prev) => {
       const next = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
-      if (next.length >= 3) {
+      const deduped = Array.from(new Set(next));
+      if (deduped.length >= 3) {
         completeQuestMission('quest-save-three');
       }
-      return next;
+      return deduped;
     });
-  };
+  }, [completeQuestMission]);
 
-  const addDocument = (doc: Omit<UserDocument, 'id' | 'uploadDate'>) => {
+  const addDocument = useCallback((doc: Omit<UserDocument, 'id' | 'uploadDate'>) => {
+    const sanitizedFileName = (doc.fileName || 'Document.pdf').trim();
     const newDoc: UserDocument = {
       ...doc,
-      id: `doc-${Date.now()}`,
+      fileName: sanitizedFileName,
+      id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       uploadDate: new Date().toISOString().split('T')[0],
+      status: doc.status || 'Verified',
     };
-    setDocuments((prev) => [newDoc, ...prev]);
+    setDocuments((prev) => {
+      // Replace duplicate upload of identical type and fileName
+      const filtered = prev.filter(
+        (d) => !(d.type === newDoc.type && d.fileName.toLowerCase() === newDoc.fileName.toLowerCase())
+      );
+      return [newDoc, ...filtered];
+    });
     completeQuestMission('quest-vault-ready');
-  };
+  }, [completeQuestMission]);
 
-  const removeDocument = (id: string) => {
+  const removeDocument = useCallback((id: string) => {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
-  };
+  }, []);
 
-  const updateApplicationStage = (scholarshipId: string, stage: JourneyStage) => {
+  const updateApplicationStage = useCallback((scholarshipId: string, stage: JourneyStage) => {
     setApplicationTracks((prev) => {
       const existing = prev[scholarshipId] || {
         scholarshipId,
@@ -270,9 +286,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (stage === 'APPLY' || stage === 'SUBMITTED') {
       completeQuestMission('quest-first-apply');
     }
-  };
+  }, [completeQuestMission]);
 
-  const updateApplicationChecklist = (scholarshipId: string, checklistId: string, completed: boolean) => {
+  const updateApplicationChecklist = useCallback((scholarshipId: string, checklistId: string, completed: boolean) => {
     setApplicationTracks((prev) => {
       const existing = prev[scholarshipId];
       if (!existing) return prev;
@@ -286,9 +302,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
       };
     });
-  };
+  }, []);
 
-  const updateApplicationNotes = (scholarshipId: string, notes: string) => {
+  const updateApplicationNotes = useCallback((scholarshipId: string, notes: string) => {
     setApplicationTracks((prev) => {
       const existing = prev[scholarshipId];
       if (!existing) return prev;
@@ -297,15 +313,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         [scholarshipId]: { ...existing, notes },
       };
     });
-  };
+  }, []);
 
-  const completeQuestMission = (id: string) => {
-    setQuestMissions((prev) =>
-      prev.map((q) => (q.id === id ? { ...q, completed: true } : q))
-    );
-  };
-
-  const resetDemoData = () => {
+  const resetDemoData = useCallback(() => {
     setProfile(DEFAULT_STUDENT_PROFILE);
     setDocuments(INITIAL_USER_DOCUMENTS);
     setSavedScholarshipIds(DEFAULT_STUDENT_PROFILE.savedScholarshipIds);
@@ -323,52 +333,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ],
       },
     });
-    localStorage.clear();
-  };
+    try {
+      localStorage.clear();
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  const totalQuestPoints = questMissions
-    .filter((q) => q.completed)
-    .reduce((sum, q) => sum + q.points, 0);
+  const totalQuestPoints = useMemo(() => {
+    return questMissions
+      .filter((q) => q.completed)
+      .reduce((sum, q) => sum + q.points, 0);
+  }, [questMissions]);
 
-  const eligibleScholarshipsCount = scholarships.filter((s) => {
-    const res = evaluateScholarshipMatch(s, profile, documents);
-    return res.status === 'ELIGIBLE' || res.status === 'POTENTIALLY ELIGIBLE';
-  }).length;
+  const eligibleScholarshipsCount = useMemo(() => {
+    return scholarships.filter((s) => {
+      const res = evaluateScholarshipMatch(s, profile, documents);
+      return res.status === 'ELIGIBLE' || res.status === 'POTENTIALLY ELIGIBLE';
+    }).length;
+  }, [scholarships, profile, documents]);
+
+  const contextValue = useMemo(() => ({
+    tab,
+    setTab,
+    profile,
+    updateProfile,
+    scholarships,
+    documents,
+    addDocument,
+    removeDocument,
+    savedScholarshipIds,
+    toggleSaveScholarship,
+    applicationTracks,
+    updateApplicationStage,
+    updateApplicationChecklist,
+    updateApplicationNotes,
+    selectedScholarshipId,
+    setSelectedScholarshipId,
+    gapAnalyzerScholarshipId,
+    setGapAnalyzerScholarshipId,
+    questMissions,
+    completeQuestMission,
+    showOnboardingModal,
+    setShowOnboardingModal,
+    showAssistantDrawer,
+    setShowAssistantDrawer,
+    showQuestModal,
+    setShowQuestModal,
+    resetDemoData,
+    totalQuestPoints,
+    eligibleScholarshipsCount,
+  }), [
+    tab,
+    profile,
+    updateProfile,
+    scholarships,
+    documents,
+    addDocument,
+    removeDocument,
+    savedScholarshipIds,
+    toggleSaveScholarship,
+    applicationTracks,
+    updateApplicationStage,
+    updateApplicationChecklist,
+    updateApplicationNotes,
+    selectedScholarshipId,
+    gapAnalyzerScholarshipId,
+    questMissions,
+    completeQuestMission,
+    showOnboardingModal,
+    showAssistantDrawer,
+    showQuestModal,
+    resetDemoData,
+    totalQuestPoints,
+    eligibleScholarshipsCount,
+  ]);
 
   return (
-    <AppContext.Provider
-      value={{
-        tab,
-        setTab,
-        profile,
-        updateProfile,
-        scholarships,
-        documents,
-        addDocument,
-        removeDocument,
-        savedScholarshipIds,
-        toggleSaveScholarship,
-        applicationTracks,
-        updateApplicationStage,
-        updateApplicationChecklist,
-        updateApplicationNotes,
-        selectedScholarshipId,
-        setSelectedScholarshipId,
-        gapAnalyzerScholarshipId,
-        setGapAnalyzerScholarshipId,
-        questMissions,
-        completeQuestMission,
-        showOnboardingModal,
-        setShowOnboardingModal,
-        showAssistantDrawer,
-        setShowAssistantDrawer,
-        showQuestModal,
-        setShowQuestModal,
-        resetDemoData,
-        totalQuestPoints,
-        eligibleScholarshipsCount,
-      }}
-    >
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

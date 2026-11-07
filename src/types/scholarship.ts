@@ -12,7 +12,7 @@ export type VerificationStatus = 'Official Source Verified' | 'Demo Information'
 
 export type PriorityLevel = 'HIGH' | 'MEDIUM' | 'LOW' | 'EXPIRED';
 
-export type CgpaFormula = 'standard_9_5' | 'aicte_revised' | 'linear_10' | 'custom';
+export type CgpaFormula = 'standard_9_5' | 'aicte_revised' | 'linear_10' | 'custom' | 'unknown';
 
 export type JourneyStage = 'DISCOVER' | 'MATCH' | 'PREPARE' | 'APPLY' | 'SUBMITTED' | 'AWARDED';
 

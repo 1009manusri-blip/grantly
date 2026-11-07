@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Layers,
@@ -33,11 +33,21 @@ export const ScholarshipStackingSimulatorView: React.FC = () => {
     return [scholarships[0]?.id, scholarships[1]?.id].filter(Boolean);
   });
 
-  const selectedScholarships = scholarships.filter((s) => selectedIds.includes(s.id));
-  const availableToAdd = scholarships.filter((s) => !selectedIds.includes(s.id));
+  const selectedScholarships = useMemo(
+    () => scholarships.filter((s) => selectedIds.includes(s.id)),
+    [scholarships, selectedIds]
+  );
 
-  // Run pure stacking simulation engine
-  const simulation = simulateScholarshipStacking(selectedScholarships);
+  const availableToAdd = useMemo(
+    () => scholarships.filter((s) => !selectedIds.includes(s.id)),
+    [scholarships, selectedIds]
+  );
+
+  // Run pure stacking simulation engine with useMemo
+  const simulation = useMemo(
+    () => simulateScholarshipStacking(selectedScholarships),
+    [selectedScholarships]
+  );
 
   const handleToggle = (id: string) => {
     setSelectedIds((prev) => {
@@ -135,6 +145,21 @@ export const ScholarshipStackingSimulatorView: React.FC = () => {
         </div>
       </div>
 
+      {/* STRATEGIC OPTIMIZATION INSIGHT */}
+      {simulation.optimizationStrategy && (
+        <div className="p-5 rounded-3xl bg-[#EAF1FF] border border-blue-200/80 text-[#172554] flex items-start gap-3 shadow-xs">
+          <Sparkles className="w-5 h-5 text-[#4169E1] shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-bold text-[#172554] font-['Space_Grotesk'] text-sm">
+              GRANTLY Stacking Optimization Strategy
+            </p>
+            <p className="text-[#506184] leading-relaxed">
+              {simulation.optimizationStrategy}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* POLICY CONFLICT & RESTRICTION ALERTS */}
       {simulation.conflicts.length > 0 && (
         <div className="p-5 rounded-2xl bg-white border border-blue-100 text-[#172554] space-y-3 shadow-xs">
@@ -147,6 +172,7 @@ export const ScholarshipStackingSimulatorView: React.FC = () => {
             {simulation.conflicts.map((conflict, i) => {
               const isBlocking = conflict.severity === 'conflict';
               const isWarning = conflict.severity === 'warning';
+              const isInsufficient = conflict.severity === 'insufficient_info';
               return (
                 <div
                   key={i}
@@ -155,6 +181,8 @@ export const ScholarshipStackingSimulatorView: React.FC = () => {
                       ? 'bg-rose-50/80 border-rose-200 text-rose-950'
                       : isWarning
                       ? 'bg-amber-50/80 border-amber-200 text-amber-950'
+                      : isInsufficient
+                      ? 'bg-slate-50 border-slate-200 text-slate-800'
                       : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
                   }`}
                 >
@@ -168,10 +196,12 @@ export const ScholarshipStackingSimulatorView: React.FC = () => {
                           ? 'text-rose-700 bg-rose-100 border-rose-200'
                           : isWarning
                           ? 'text-amber-800 bg-amber-100 border-amber-200'
+                          : isInsufficient
+                          ? 'text-slate-700 bg-slate-100 border-slate-300'
                           : 'text-emerald-700 bg-emerald-100 border-emerald-200'
                       }`}
                     >
-                      {isBlocking ? 'Confirmed Conflict' : isWarning ? 'Institutional NOC Required' : 'Permitted Stacking'}
+                      {conflict.statusLabel || (isBlocking ? 'Confirmed Conflict' : isWarning ? 'Possible Conflict' : isInsufficient ? 'Insufficient Information' : 'No Known Conflict')}
                     </span>
                   </div>
                   <p className="leading-relaxed text-[11px] opacity-90">{conflict.reason}</p>

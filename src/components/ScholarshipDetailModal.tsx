@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   X,
@@ -35,6 +35,17 @@ export const ScholarshipDetailModal: React.FC = () => {
     setTab,
   } = useApp();
 
+  useEffect(() => {
+    if (!selectedScholarshipId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedScholarshipId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedScholarshipId, setSelectedScholarshipId]);
+
   if (!selectedScholarshipId) return null;
 
   const scholarship = scholarships.find((s) => s.id === selectedScholarshipId);
@@ -48,13 +59,21 @@ export const ScholarshipDetailModal: React.FC = () => {
   const userDocTypes = new Set(documents.map((d) => d.type.toLowerCase().trim()));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-scholarship-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setSelectedScholarshipId(null);
+      }}
+    >
       <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-blue-100 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
         {/* Top Header */}
         <div className="bg-gradient-to-r from-[#172554] via-[#1E3A8A] to-[#2563EB] text-white p-6 relative">
           <button
             onClick={() => setSelectedScholarshipId(null)}
-            className="absolute top-5 right-5 text-blue-200 hover:text-white p-1 rounded-lg transition-colors"
+            className="absolute top-5 right-5 text-blue-200 hover:text-white p-1 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white"
             aria-label="Close Truth Card"
           >
             <X className="w-5 h-5" />
@@ -83,7 +102,7 @@ export const ScholarshipDetailModal: React.FC = () => {
             </span>
           </div>
 
-          <h2 className="text-2xl font-bold font-['Space_Grotesk'] text-white leading-tight">
+          <h2 id="modal-scholarship-title" className="text-2xl font-bold font-['Space_Grotesk'] text-white leading-tight">
             {scholarship.name}
           </h2>
 

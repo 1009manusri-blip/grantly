@@ -38,6 +38,17 @@ export const ProfileSettingsView: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  // Close reset confirmation dialog on Escape key
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showResetConfirm) {
+        setShowResetConfirm(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showResetConfirm]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -141,8 +152,11 @@ export const ProfileSettingsView: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Full Legal Name</label>
+              <label htmlFor="profile-fullName" className="block text-xs font-semibold text-[#172554] mb-1">
+                Full Legal Name
+              </label>
               <input
+                id="profile-fullName"
                 type="text"
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
@@ -150,8 +164,11 @@ export const ProfileSettingsView: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Email Address</label>
+              <label htmlFor="profile-email" className="block text-xs font-semibold text-[#172554] mb-1">
+                Email Address
+              </label>
               <input
+                id="profile-email"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -159,8 +176,11 @@ export const ProfileSettingsView: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Phone Number</label>
+              <label htmlFor="profile-phone" className="block text-xs font-semibold text-[#172554] mb-1">
+                Phone Number
+              </label>
               <input
+                id="profile-phone"
                 type="text"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -179,8 +199,11 @@ export const ProfileSettingsView: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Education Level</label>
+              <label htmlFor="profile-educationLevel" className="block text-xs font-semibold text-[#172554] mb-1">
+                Education Level
+              </label>
               <select
+                id="profile-educationLevel"
                 value={form.educationLevel}
                 onChange={(e) => setForm({ ...form, educationLevel: e.target.value as EducationLevel })}
                 className="w-full text-xs font-medium py-2.5 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554]"
@@ -194,8 +217,11 @@ export const ProfileSettingsView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Degree Program</label>
+              <label htmlFor="profile-degree" className="block text-xs font-semibold text-[#172554] mb-1">
+                Degree Program
+              </label>
               <input
+                id="profile-degree"
                 type="text"
                 value={form.degree}
                 onChange={(e) => setForm({ ...form, degree: e.target.value })}
@@ -204,8 +230,11 @@ export const ProfileSettingsView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Current Year</label>
+              <label htmlFor="profile-currentYear" className="block text-xs font-semibold text-[#172554] mb-1">
+                Current Year
+              </label>
               <input
+                id="profile-currentYear"
                 type="number"
                 min="1"
                 max="5"
@@ -218,8 +247,11 @@ export const ProfileSettingsView: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Institution Name</label>
+              <label htmlFor="profile-institution" className="block text-xs font-semibold text-[#172554] mb-1">
+                Institution Name
+              </label>
               <input
+                id="profile-institution"
                 type="text"
                 value={form.institution}
                 onChange={(e) => setForm({ ...form, institution: e.target.value })}
@@ -260,10 +292,11 @@ export const ProfileSettingsView: React.FC = () => {
           <div className="p-4 rounded-2xl bg-[#F4F7FF] border border-blue-100 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <div>
-                <label className="block text-xs font-semibold text-[#172554] mb-1">
+                <label htmlFor="profile-academicScore" className="block text-xs font-semibold text-[#172554] mb-1">
                   Academic Score ({form.academicScoreType === 'cgpa' ? 'CGPA out of 10' : 'Percentage %'})
                 </label>
                 <input
+                  id="profile-academicScore"
                   type="number"
                   step="0.01"
                   min="0"
@@ -276,10 +309,11 @@ export const ProfileSettingsView: React.FC = () => {
 
               {form.academicScoreType === 'cgpa' && (
                 <div>
-                  <label className="block text-xs font-semibold text-[#172554] mb-1">
+                  <label htmlFor="profile-cgpaFormula" className="block text-xs font-semibold text-[#172554] mb-1">
                     CGPA-to-Percentage Conversion Rule
                   </label>
                   <select
+                    id="profile-cgpaFormula"
                     value={form.cgpaFormula || 'standard_9_5'}
                     onChange={(e) => setForm({ ...form, cgpaFormula: e.target.value as CgpaFormula })}
                     className="w-full text-xs font-medium py-2.5 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554]"
@@ -295,10 +329,11 @@ export const ProfileSettingsView: React.FC = () => {
 
             {form.academicScoreType === 'cgpa' && form.cgpaFormula === 'custom' && (
               <div className="sm:w-1/2">
-                <label className="block text-xs font-semibold text-[#172554] mb-1">
+                <label htmlFor="profile-customMultiplier" className="block text-xs font-semibold text-[#172554] mb-1">
                   Custom Multiplier (specified on transcript backsheet)
                 </label>
                 <input
+                  id="profile-customMultiplier"
                   type="number"
                   step="0.1"
                   min="1"
@@ -344,10 +379,11 @@ export const ProfileSettingsView: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">
+              <label htmlFor="profile-annualFamilyIncome" className="block text-xs font-semibold text-[#172554] mb-1">
                 Annual Family Income (INR ₹)
               </label>
               <input
+                id="profile-annualFamilyIncome"
                 type="number"
                 step="10000"
                 value={form.annualFamilyIncome}
@@ -357,8 +393,11 @@ export const ProfileSettingsView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Home State Domicile</label>
+              <label htmlFor="profile-stateDomicile" className="block text-xs font-semibold text-[#172554] mb-1">
+                Home State Domicile
+              </label>
               <input
+                id="profile-stateDomicile"
                 type="text"
                 value={form.stateDomicile}
                 onChange={(e) => setForm({ ...form, stateDomicile: e.target.value })}
@@ -417,26 +456,40 @@ export const ProfileSettingsView: React.FC = () => {
 
       {/* Reset Confirmation Dialog */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-[#172554]">
-            <h3 className="text-lg font-bold">Reset Demo Data?</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              This will restore all default scholarships, default student profile (Aarav Sharma), demo documents, and application tracks.
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reset-modal-title"
+            aria-describedby="reset-modal-desc"
+            className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border border-blue-100 text-[#172554] space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="reset-modal-title" className="text-lg font-bold font-['Space_Grotesk'] text-[#172554]">
+              Reset Demo Data?
+            </h3>
+            <p id="reset-modal-desc" className="text-xs text-slate-500 leading-relaxed">
+              This will restore all default scholarships, default student profile (Aarav Sharma), demo documents, and application tracks to clean state.
             </p>
-            <div className="flex gap-2.5 mt-5">
+            <div className="flex gap-2.5 pt-1">
               <button
+                type="button"
                 onClick={() => setShowResetConfirm(false)}
-                className="flex-1 py-2 px-3 text-xs font-semibold rounded-xl border border-blue-200 text-slate-700 hover:bg-[#F4F7FF]"
+                className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl border border-blue-200 text-slate-700 hover:bg-[#F4F7FF] transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
                   resetDemoData();
                   setShowResetConfirm(false);
                   setTab('dashboard');
                 }}
-                className="flex-1 py-2 px-3 text-xs font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700"
+                className="flex-1 py-2.5 px-3 text-xs font-semibold rounded-xl bg-red-600 text-white hover:bg-red-700 transition-colors shadow-xs"
               >
                 Confirm Reset
               </button>

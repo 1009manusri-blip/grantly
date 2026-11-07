@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   FileCheck2,
@@ -14,6 +14,7 @@ import {
   ChevronRight,
   User,
   ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { evaluateScholarshipMatch, formatINR } from '../utils/matching';
 
@@ -31,21 +32,87 @@ export const EligibilityGapAnalyzerView: React.FC = () => {
 
   // Active selected scholarship for deep inspection
   const selectedId = gapAnalyzerScholarshipId || scholarships[0]?.id;
-  const currentScholarship = scholarships.find((s) => s.id === selectedId) || scholarships[0];
+  const currentScholarship = useMemo(() => {
+    return scholarships.find((s) => s.id === selectedId) || scholarships[0];
+  }, [scholarships, selectedId]);
 
-  const match = evaluateScholarshipMatch(currentScholarship, profile, documents);
+  const match = useMemo(() => {
+    return evaluateScholarshipMatch(currentScholarship, profile, documents);
+  }, [currentScholarship, profile, documents]);
 
   // Separate criteria into satisfied, not satisfied, and missing
-  const satisfiedCriteria = match.criteriaBreakdown.filter((c) => c.status === 'satisfied');
-  const notSatisfiedCriteria = match.criteriaBreakdown.filter((c) => c.status === 'not_satisfied');
-  const missingCriteria = match.criteriaBreakdown.filter((c) => c.status === 'missing_info');
+  const satisfiedCriteria = useMemo(() => {
+    return match.criteriaBreakdown.filter((c) => c.status === 'satisfied');
+  }, [match]);
+
+  const notSatisfiedCriteria = useMemo(() => {
+    return match.criteriaBreakdown.filter((c) => c.status === 'not_satisfied');
+  }, [match]);
+
+  const missingCriteria = useMemo(() => {
+    return match.criteriaBreakdown.filter((c) => c.status === 'missing_info');
+  }, [match]);
+
+  // Cross-scheme unlock leverage calculation:
+  // For each missing document, find other scholarships needing it and total value
+  const crossSchemeDocumentImpact = useMemo(() => {
+    return match.missingDocuments.map((docName) => {
+      const lower = docName.toLowerCase().trim();
+      const otherNeeding = scholarships.filter((s) =>
+        s.id !== currentScholarship.id &&
+        s.requiredDocuments.some((req) => {
+          const r = req.toLowerCase().trim();
+          return (
+            r.includes(lower) ||
+            lower.includes(r) ||
+            (lower.includes('income') && r.includes('income')) ||
+            (lower.includes('transcript') && r.includes('marksheet'))
+          );
+        })
+      );
+      const totalUnlockedValue = otherNeeding.reduce((sum, s) => sum + s.amount, 0);
+      return {
+        docName,
+        otherCount: otherNeeding.length,
+        totalUnlockedValue,
+        schemes: otherNeeding.slice(0, 2).map((s) => s.name),
+      };
+    });
+  }, [match.missingDocuments, scholarships, currentScholarship.id]);
+
+  // Total cross-scheme value unlockable
+  const totalCrossSchemeValue = useMemo(() => {
+    const uniqueScholarshipIds = new Set<string>();
+    match.missingDocuments.forEach((docName) => {
+      const lower = docName.toLowerCase().trim();
+      scholarships.forEach((s) => {
+        if (s.id !== currentScholarship.id) {
+          const matches = s.requiredDocuments.some((req) => {
+            const r = req.toLowerCase().trim();
+            return (
+              r.includes(lower) ||
+              lower.includes(r) ||
+              (lower.includes('income') && r.includes('income')) ||
+              (lower.includes('transcript') && r.includes('marksheet'))
+            );
+          });
+          if (matches) uniqueScholarshipIds.add(s.id);
+        }
+      });
+    });
+    return scholarships
+      .filter((s) => uniqueScholarshipIds.has(s.id))
+      .reduce((sum, s) => sum + s.amount, 0);
+  }, [match.missingDocuments, scholarships, currentScholarship.id]);
 
   // Alternative recommendations if not eligible
-  const alternatives = scholarships
-    .filter((s) => s.id !== currentScholarship.id)
-    .map((s) => ({ s, m: evaluateScholarshipMatch(s, profile, documents) }))
-    .filter((item) => item.m.status === 'ELIGIBLE' || item.m.status === 'POTENTIALLY ELIGIBLE')
-    .slice(0, 3);
+  const alternatives = useMemo(() => {
+    return scholarships
+      .filter((s) => s.id !== currentScholarship.id)
+      .map((s) => ({ s, m: evaluateScholarshipMatch(s, profile, documents) }))
+      .filter((item) => item.m.status === 'ELIGIBLE' || item.m.status === 'POTENTIALLY ELIGIBLE')
+      .slice(0, 3);
+  }, [scholarships, currentScholarship.id, profile, documents]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -66,8 +133,11 @@ export const EligibilityGapAnalyzerView: React.FC = () => {
 
         {/* Scholarship Selector Dropdown */}
         <div className="flex items-center gap-2 self-start md:self-auto min-w-[280px]">
-          <label className="text-xs font-bold text-[#172554] shrink-0">Analyze:</label>
+          <label htmlFor="gap-analyzer-select" className="text-xs font-bold text-[#172554] shrink-0">
+            Analyze:
+          </label>
           <select
+            id="gap-analyzer-select"
             value={selectedId}
             onChange={(e) => setGapAnalyzerScholarshipId(e.target.value)}
             className="w-full text-xs font-semibold py-2.5 px-3 rounded-full border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554] shadow-xs"
@@ -78,6 +148,119 @@ export const EligibilityGapAnalyzerView: React.FC = () => {
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* STRATEGIC ACTION ROADMAP & CROSS-SCHEME LEVERAGE */}
+      <div className="bg-gradient-to-br from-[#172554] via-[#1E3A8A] to-[#2563EB] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-blue-400/20 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-300" />
+            <h2 className="text-lg font-bold font-['Space_Grotesk'] text-white">
+              Strategic Action Roadmap & Unlocked Value Impact
+            </h2>
+          </div>
+          {totalCrossSchemeValue > 0 && (
+            <span className="text-xs font-bold bg-white/15 backdrop-blur-md px-3 py-1 rounded-full text-cyan-200 border border-white/20 self-start sm:self-auto">
+              Cross-Scheme Leverage: +{formatINR(totalCrossSchemeValue)} Available
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs text-blue-100 leading-relaxed max-w-3xl">
+          Actionable pathway to eliminate eligibility gaps for <strong>{currentScholarship.name}</strong>. Resolving verified document requirements and testing threshold milestones also compounds across multiple other schemes simultaneously.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Quick-Win Document Uploads */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/15 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5 uppercase tracking-wide">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Quick-Win Resolvable Proofs ({match.missingDocuments.length})</span>
+              </span>
+              <button
+                onClick={() => setTab('vault')}
+                className="text-[11px] font-bold text-cyan-200 hover:text-white transition-colors"
+              >
+                Open Vault →
+              </button>
+            </div>
+
+            {match.missingDocuments.length === 0 ? (
+              <p className="text-xs text-blue-100/80 bg-white/5 p-3 rounded-xl">
+                All mandatory verification documents are present in your vault! No document blocker for this scholarship.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {crossSchemeDocumentImpact.map((item, i) => (
+                  <div
+                    key={i}
+                    className="p-3 rounded-xl bg-white/10 border border-white/10 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div>
+                      <p className="font-bold text-white">{item.docName}</p>
+                      <p className="text-[11px] text-blue-200 mt-0.5">
+                        {item.otherCount > 0
+                          ? `Also unlocks ${item.otherCount} other scheme(s) (+${formatINR(item.totalUnlockedValue)})`
+                          : 'Required for this application dossier'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setTab('vault')}
+                      className="py-1.5 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[11px] shrink-0 transition-colors shadow-2xs"
+                    >
+                      Upload Now
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Hard Thresholds & What-If Delta */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/15 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 uppercase tracking-wide">
+                <TrendingUp className="w-4 h-4 text-amber-400" />
+                <span>Academic & Statutory Threshold Gaps ({notSatisfiedCriteria.length})</span>
+              </span>
+              <button
+                onClick={() => setTab('whatif')}
+                className="text-[11px] font-bold text-cyan-200 hover:text-white transition-colors"
+              >
+                Test in Sandbox →
+              </button>
+            </div>
+
+            {notSatisfiedCriteria.length === 0 ? (
+              <p className="text-xs text-blue-100/80 bg-white/5 p-3 rounded-xl">
+                All statutory criteria (academic score, income limits, domicile, reservation) are fully satisfied!
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {notSatisfiedCriteria.map((crit, i) => (
+                  <div
+                    key={i}
+                    className="p-3 rounded-xl bg-white/10 border border-white/10 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div>
+                      <p className="font-bold text-white">{crit.name}</p>
+                      <p className="text-[11px] text-amber-200 mt-0.5">
+                        Required: {crit.requirement} · Profile: {crit.studentValue}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setTab('whatif')}
+                      className="py-1.5 px-3 rounded-lg bg-[#4169E1] hover:bg-blue-600 text-white font-bold text-[11px] shrink-0 transition-colors shadow-2xs"
+                    >
+                      Simulate Delta
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -16,12 +16,40 @@ import { evaluateScholarshipMatch, formatINR } from '../utils/matching';
 import { EducationLevel, StudentProfile } from '../types/scholarship';
 
 export const WhatIfExplorerView: React.FC = () => {
-  const { profile, scholarships, documents, setSelectedScholarshipId } = useApp();
+  const { profile, scholarships, documents, setSelectedScholarshipId, updateProfile } = useApp();
 
   // Hypothetical state (isolated from actual profile!)
   const [hypoScore, setHypoScore] = useState<number>(profile.academicScore || 75);
   const [hypoIncome, setHypoIncome] = useState<number>(profile.annualFamilyIncome || 450000);
   const [hypoLevel, setHypoLevel] = useState<EducationLevel>(profile.educationLevel || 'Undergraduate');
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const [appliedSuccessToast, setAppliedSuccessToast] = useState<string | null>(null);
+
+  // Close modal on Escape
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showConfirmModal) {
+        setShowConfirmModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showConfirmModal]);
+
+  const handleApplyToProfile = () => {
+    updateProfile({
+      ...profile,
+      academicScore: hypoScore,
+      academicScoreType: 'percentage',
+      annualFamilyIncome: hypoIncome,
+      educationLevel: hypoLevel,
+    });
+    setShowConfirmModal(false);
+    setAppliedSuccessToast(
+      `Saved profile updated: ${hypoScore}% academic score, ${formatINR(hypoIncome)} income, ${hypoLevel} level.`
+    );
+    setTimeout(() => setAppliedSuccessToast(null), 5000);
+  };
 
   // Baseline evaluation with REAL profile
   const baselineMatches = useMemo(() => {
@@ -81,13 +109,21 @@ export const WhatIfExplorerView: React.FC = () => {
         </div>
       </div>
 
+      {/* Success Toast */}
+      {appliedSuccessToast && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-semibold flex items-center gap-2 shadow-xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{appliedSuccessToast}</span>
+        </div>
+      )}
+
       {/* Mandatory Sandbox Transparency Notice */}
       <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 text-xs flex gap-3 items-start shadow-xs">
         <ShieldAlert className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
         <div className="leading-relaxed">
           <p className="font-bold">Hypothetical Simulation Sandbox — Integrity Notice</p>
           <p className="text-[11px] text-amber-900 mt-0.5">
-            Adjusting parameters here does <strong>not</strong> change your verified student profile. Official scholarship applications strictly require government-issued income certificates and university transcripts. Never misrepresent credentials on official portals.
+            Adjusting parameters here does <strong>not</strong> change your verified student profile without explicit confirmation. Official scholarship applications strictly require government-issued income certificates and university transcripts.
           </p>
         </div>
       </div>
@@ -104,12 +140,15 @@ export const WhatIfExplorerView: React.FC = () => {
           {/* Variable 1: Academic Score */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">Academic Percentage</label>
+              <label htmlFor="slider-academic-score" className="text-xs font-bold text-slate-700">
+                Academic Percentage
+              </label>
               <span className="text-sm font-extrabold text-[#4169E1] font-['Space_Grotesk']">
                 {hypoScore}%
               </span>
             </div>
             <input
+              id="slider-academic-score"
               type="range"
               min="50"
               max="98"
@@ -128,12 +167,15 @@ export const WhatIfExplorerView: React.FC = () => {
           {/* Variable 2: Family Income */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">Annual Family Income</label>
+              <label htmlFor="slider-family-income" className="text-xs font-bold text-slate-700">
+                Annual Family Income
+              </label>
               <span className="text-sm font-extrabold text-[#4169E1] font-['Space_Grotesk']">
                 {formatINR(hypoIncome)}
               </span>
             </div>
             <input
+              id="slider-family-income"
               type="range"
               min="100000"
               max="1500000"
@@ -172,16 +214,27 @@ export const WhatIfExplorerView: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setHypoScore(profile.academicScore || 75);
-              setHypoIncome(profile.annualFamilyIncome || 450000);
-              setHypoLevel(profile.educationLevel || 'Undergraduate');
-            }}
-            className="w-full py-2.5 rounded-xl border border-blue-200 text-xs font-semibold text-slate-600 hover:bg-[#F4F7FF] transition-colors"
-          >
-            Reset Variables to Current Profile
-          </button>
+          <div className="space-y-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowConfirmModal(true)}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#4169E1] to-[#7664D8] hover:from-[#3557c7] hover:to-[#6553c7] text-white text-xs font-bold transition-all shadow-sm shadow-[#4169E1]/25 flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Apply Scenario to My Profile</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setHypoScore(profile.academicScore || 75);
+                setHypoIncome(profile.annualFamilyIncome || 450000);
+                setHypoLevel(profile.educationLevel || 'Undergraduate');
+              }}
+              className="w-full py-2 rounded-xl border border-blue-200 text-xs font-semibold text-slate-600 hover:bg-[#F4F7FF] transition-colors"
+            >
+              Reset Variables to Current Profile
+            </button>
+          </div>
         </div>
 
         {/* Impact Comparison Cards */}
@@ -265,6 +318,79 @@ export const WhatIfExplorerView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setShowConfirmModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="whatif-confirm-title"
+            aria-describedby="whatif-confirm-desc"
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-blue-100 text-[#172554] space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#EAF1FF] text-[#4169E1] flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 id="whatif-confirm-title" className="text-lg font-bold font-['Space_Grotesk'] text-[#172554]">
+                  Update Student Profile?
+                </h3>
+                <p className="text-xs text-[#506184]">
+                  Confirm applying hypothetical scenario parameters to your saved profile.
+                </p>
+              </div>
+            </div>
+
+            <div id="whatif-confirm-desc" className="bg-[#F4F7FF] rounded-2xl p-4 border border-blue-100 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-[#506184]">Academic Score:</span>
+                <span className="font-bold text-[#172554]">
+                  {profile.academicScore}% → <span className="text-[#4169E1]">{hypoScore}%</span>
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#506184]">Annual Family Income:</span>
+                <span className="font-bold text-[#172554]">
+                  {formatINR(profile.annualFamilyIncome)} → <span className="text-[#4169E1]">{formatINR(hypoIncome)}</span>
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#506184]">Education Level:</span>
+                <span className="font-bold text-[#172554]">
+                  {profile.educationLevel} → <span className="text-[#4169E1]">{hypoLevel}</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-[11px] leading-relaxed">
+              <strong>Mandatory Compliance Notice:</strong> Official government portals and corporate trusts cross-verify these criteria with uploaded certificates in your Document Vault. Ensure you possess legitimate records matching these values.
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-blue-200 text-xs font-semibold text-slate-700 hover:bg-[#F4F7FF] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyToProfile}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#4169E1] to-[#7664D8] hover:from-[#3557c7] hover:to-[#6553c7] text-white text-xs font-bold transition-all shadow-md shadow-[#4169E1]/25"
+              >
+                Confirm & Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

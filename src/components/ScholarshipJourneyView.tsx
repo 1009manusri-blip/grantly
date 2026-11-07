@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Milestone,
@@ -11,9 +11,12 @@ import {
   Check,
   ChevronRight,
   Sparkles,
+  FolderArchive,
+  AlertCircle,
 } from 'lucide-react';
 import { JourneyStage, Scholarship } from '../types/scholarship';
 import { formatINR } from '../utils/matching';
+import { calculateDaysRemaining, formatCountdown, getPriorityLevel, formatDate } from '../utils/dates';
 
 const ALL_STAGES: JourneyStage[] = ['DISCOVER', 'MATCH', 'PREPARE', 'APPLY', 'SUBMITTED', 'AWARDED'];
 
@@ -21,6 +24,7 @@ export const ScholarshipJourneyView: React.FC = () => {
   const {
     scholarships,
     applicationTracks,
+    documents,
     updateApplicationStage,
     updateApplicationChecklist,
     updateApplicationNotes,
@@ -30,15 +34,21 @@ export const ScholarshipJourneyView: React.FC = () => {
 
   const [activeStageFilter, setActiveStageFilter] = useState<'ALL' | JourneyStage>('ALL');
 
-  // Collect all tracked scholarships
-  const trackedList = Object.values(applicationTracks).map((track) => {
-    const sch = scholarships.find((s) => s.id === track.scholarshipId);
-    return { track, sch };
-  }).filter((item): item is { track: typeof item.track; sch: Scholarship } => Boolean(item.sch));
+  // Collect all tracked scholarships with memoization
+  const trackedList = useMemo(() => {
+    return Object.values(applicationTracks)
+      .map((track) => {
+        const sch = scholarships.find((s) => s.id === track.scholarshipId);
+        return { track, sch };
+      })
+      .filter((item): item is { track: typeof item.track; sch: Scholarship } => Boolean(item.sch));
+  }, [applicationTracks, scholarships]);
 
-  const filteredTracks = activeStageFilter === 'ALL'
-    ? trackedList
-    : trackedList.filter((item) => item.track.stage === activeStageFilter);
+  const filteredTracks = useMemo(() => {
+    return activeStageFilter === 'ALL'
+      ? trackedList
+      : trackedList.filter((item) => item.track.stage === activeStageFilter);
+  }, [activeStageFilter, trackedList]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -151,6 +161,26 @@ export const ScholarshipJourneyView: React.FC = () => {
               const completedCount = track.checklist.filter((c) => c.completed).length;
               const percent = Math.round((completedCount / (track.checklist.length || 1)) * 100);
 
+              const daysRemaining = calculateDaysRemaining(sch.deadline);
+              const countdownLabel = formatCountdown(daysRemaining);
+              const priority = getPriorityLevel(daysRemaining);
+
+              const requiredDocs = sch.requiredDocuments || [];
+              const verifiedDocsCount = requiredDocs.filter((req) => {
+                const lower = req.toLowerCase().trim();
+                return documents.some((d) => {
+                  const dLower = d.type.toLowerCase().trim();
+                  return (
+                    dLower.includes(lower) ||
+                    lower.includes(dLower) ||
+                    (dLower.includes('income') && lower.includes('income')) ||
+                    (dLower.includes('transcript') && lower.includes('marksheet'))
+                  );
+                });
+              }).length;
+              const totalDocs = requiredDocs.length;
+              const isVaultReady = totalDocs > 0 && verifiedDocsCount === totalDocs;
+
               return (
                 <div
                   key={track.scholarshipId}
@@ -166,18 +196,62 @@ export const ScholarshipJourneyView: React.FC = () => {
                         <h3 className="text-base font-bold text-[#172554] leading-snug mt-0.5">
                           {sch.name}
                         </h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <div
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              priority === 'HIGH'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : priority === 'MEDIUM'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : priority === 'EXPIRED'
+                                ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            }`}
+                          >
+                            <Clock className="w-3 h-3" />
+                            <span>{countdownLabel}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-500">
+                            Closes: <strong>{formatDate(sch.deadline)}</strong>
+                          </span>
+                        </div>
                       </div>
                       <span className="text-sm font-extrabold text-[#172554] font-['Space_Grotesk'] shrink-0">
                         {sch.amountFormatted}
                       </span>
                     </div>
 
+                    {/* Document Vault Readiness Badge */}
+                    <div className="p-3 rounded-2xl bg-[#F4F7FF] border border-blue-100 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <FolderArchive className="w-4 h-4 text-[#4169E1] shrink-0" />
+                        <div>
+                          <span className="font-bold text-[#172554]">Vault Dossier: </span>
+                          <span className={isVaultReady ? 'text-emerald-700 font-bold' : 'text-[#4169E1] font-bold'}>
+                            {verifiedDocsCount}/{totalDocs} Documents Verified
+                          </span>
+                        </div>
+                      </div>
+                      {!isVaultReady && (
+                        <button
+                          onClick={() => setTab('vault')}
+                          className="text-[11px] font-bold text-[#4169E1] hover:underline shrink-0"
+                        >
+                          Upload Missing →
+                        </button>
+                      )}
+                    </div>
+
                     {/* Stage Selector */}
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                      <label
+                        htmlFor={`journey-stage-${track.scholarshipId}`}
+                        className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5"
+                      >
                         Current Application Stage
                       </label>
                       <select
+                        id={`journey-stage-${track.scholarshipId}`}
                         value={track.stage}
                         onChange={(e) =>
                           updateApplicationStage(track.scholarshipId, e.target.value as JourneyStage)

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { CgpaFormula, EducationLevel, StudentProfile } from '../types/scholarship';
 import {
@@ -68,13 +68,27 @@ export const OnboardingModal: React.FC = () => {
   const [formData, setFormData] = useState<StudentProfile>({ ...profile });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  if (!showOnboardingModal) return null;
+  useEffect(() => {
+    if (!showOnboardingModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowOnboardingModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showOnboardingModal, setShowOnboardingModal]);
 
-  // Calculate live matching preview
-  const liveMatches = scholarships.filter((s) => {
-    const res = evaluateScholarshipMatch(s, formData, documents);
-    return res.status === 'ELIGIBLE' || res.status === 'POTENTIALLY ELIGIBLE';
-  }).length;
+  // Calculate live matching preview with useMemo
+  const liveMatches = useMemo(() => {
+    if (!showOnboardingModal) return 0;
+    return scholarships.filter((s) => {
+      const res = evaluateScholarshipMatch(s, formData, documents);
+      return res.status === 'ELIGIBLE' || res.status === 'POTENTIALLY ELIGIBLE';
+    }).length;
+  }, [scholarships, formData, documents, showOnboardingModal]);
+
+  if (!showOnboardingModal) return null;
 
   const validateStep = (s: number): boolean => {
     const newErrors: Record<string, string> = {};
@@ -134,13 +148,21 @@ export const OnboardingModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setShowOnboardingModal(false);
+      }}
+    >
       <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-blue-100 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
         {/* Header with Step Progress */}
         <div className="bg-gradient-to-r from-[#172554] via-[#1E3A8A] to-[#2563EB] text-white p-6 relative">
           <button
             onClick={() => setShowOnboardingModal(false)}
-            className="absolute top-5 right-5 text-blue-200 hover:text-white p-1 rounded-lg transition-colors"
+            className="absolute top-5 right-5 text-blue-200 hover:text-white p-1 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-white"
             aria-label="Close Onboarding"
           >
             <X className="w-5 h-5" />
@@ -151,7 +173,7 @@ export const OnboardingModal: React.FC = () => {
             <span>Personalized Eligibility Setup</span>
           </div>
 
-          <h2 className="text-xl font-bold font-['Space_Grotesk'] mt-1">
+          <h2 id="onboarding-modal-title" className="text-xl font-bold font-['Space_Grotesk'] mt-1">
             Build Your Scholarship Profile
           </h2>
           <p className="text-xs text-blue-100 mt-1">

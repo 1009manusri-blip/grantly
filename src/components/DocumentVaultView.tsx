@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   FolderArchive,
@@ -41,27 +41,15 @@ export const DocumentVaultView: React.FC = () => {
   const [expiryInput, setExpiryInput] = useState<string>('2027-06-30');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [errorToast, setErrorToast] = useState<string | null>(null);
 
-  // Compute Document Reuse Intelligence
+  // Compute Document Reuse Intelligence with useMemo
   // Count how many saved & total scholarships need each document
-  const reuseStats = COMMON_DOC_TYPES.map((docType) => {
-    const lower = docType.toLowerCase().trim();
+  const reuseStats = useMemo(() => {
+    return COMMON_DOC_TYPES.map((docType) => {
+      const lower = docType.toLowerCase().trim();
 
-    const neededInTotal = scholarships.filter((s) =>
-      s.requiredDocuments.some((req) => {
-        const r = req.toLowerCase().trim();
-        return (
-          r.includes(lower) ||
-          lower.includes(r) ||
-          (lower.includes('income') && r.includes('income')) ||
-          (lower.includes('transcript') && r.includes('marksheet'))
-        );
-      })
-    );
-
-    const neededInSaved = scholarships
-      .filter((s) => savedScholarshipIds.includes(s.id))
-      .filter((s) =>
+      const neededInTotal = scholarships.filter((s) =>
         s.requiredDocuments.some((req) => {
           const r = req.toLowerCase().trim();
           return (
@@ -73,20 +61,43 @@ export const DocumentVaultView: React.FC = () => {
         })
       );
 
-    const isUploaded = documents.some((d) => d.type === docType);
+      const neededInSaved = scholarships
+        .filter((s) => savedScholarshipIds.includes(s.id))
+        .filter((s) =>
+          s.requiredDocuments.some((req) => {
+            const r = req.toLowerCase().trim();
+            return (
+              r.includes(lower) ||
+              lower.includes(r) ||
+              (lower.includes('income') && r.includes('income')) ||
+              (lower.includes('transcript') && r.includes('marksheet'))
+            );
+          })
+        );
 
-    return {
-      docType,
-      totalCount: neededInTotal.length,
-      savedCount: neededInSaved.length,
-      isUploaded,
-      sampleScholarships: neededInTotal.map((s) => s.name).slice(0, 3),
-    };
-  });
+      const isUploaded = documents.some((d) => d.type === docType);
+
+      return {
+        docType,
+        totalCount: neededInTotal.length,
+        savedCount: neededInSaved.length,
+        isUploaded,
+        sampleScholarships: neededInTotal.map((s) => s.name).slice(0, 3),
+      };
+    });
+  }, [scholarships, savedScholarshipIds, documents]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Strict 15MB file size limit
+    if (file.size > 15 * 1024 * 1024) {
+      setErrorToast('File size exceeds 15 MB limit. Please select a smaller PDF or image scan.');
+      setTimeout(() => setErrorToast(null), 4000);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
 
     setIsUploading(true);
     setTimeout(() => {
@@ -131,8 +142,15 @@ export const DocumentVaultView: React.FC = () => {
 
       {successToast && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center gap-2 shadow-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{successToast}</span>
+        </div>
+      )}
+
+      {errorToast && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-semibold flex items-center gap-2 shadow-xs">
+          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{errorToast}</span>
         </div>
       )}
 
@@ -185,8 +203,11 @@ export const DocumentVaultView: React.FC = () => {
 
           <div className="space-y-3 pt-1">
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">Certificate Type</label>
+              <label htmlFor="vault-doc-type" className="block text-xs font-semibold text-[#172554] mb-1">
+                Certificate Type
+              </label>
               <select
+                id="vault-doc-type"
                 value={selectedDocType}
                 onChange={(e) => setSelectedDocType(e.target.value)}
                 className="w-full text-xs font-semibold py-2.5 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] bg-white text-[#172554]"
@@ -200,15 +221,17 @@ export const DocumentVaultView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#172554] mb-1">
+              <label htmlFor="vault-doc-expiry" className="block text-xs font-semibold text-[#172554] mb-1">
                 Certificate Validity / Expiry Date
               </label>
               <input
+                id="vault-doc-expiry"
                 type="date"
                 value={expiryInput}
                 onChange={(e) => setExpiryInput(e.target.value)}
                 className="w-full text-xs font-medium py-2 px-3 rounded-xl border border-blue-200 focus:outline-none focus:ring-2 focus:ring-[#4169E1] text-[#172554]"
-              />
+              >
+              </input>
               <p className="text-[10px] text-slate-500 mt-1">
                 State income certificates are typically valid for 1-3 financial years.
               </p>
@@ -216,6 +239,7 @@ export const DocumentVaultView: React.FC = () => {
 
             {/* Hidden file input */}
             <input
+              id="vault-file-upload"
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
@@ -233,7 +257,7 @@ export const DocumentVaultView: React.FC = () => {
                 <p className="text-xs font-bold text-[#172554]">
                   {isUploading ? 'Validating certificate...' : 'Click to select file from device'}
                 </p>
-                <p className="text-[10px] text-slate-500 mt-0.5">PDF, PNG, JPG up to 10MB</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">PDF, PNG, JPG up to 15MB</p>
               </div>
             </button>
           </div>

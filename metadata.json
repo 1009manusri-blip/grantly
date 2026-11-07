@@ -1,0 +1,6 @@
+{
+  "name": "GRANTLY - Unified Scholarship Discovery & Management Platform",
+  "description": "Your future deserves funding. Let's find it. Discover scholarships, understand eligibility, prepare applications, and manage your entire funding journey.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

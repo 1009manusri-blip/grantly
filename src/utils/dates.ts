@@ -43,6 +43,14 @@ export function calculateDaysRemaining(deadlineIso?: string | null, referenceDat
 }
 
 /**
+ * Gets days until a specific date. 
+ * Acts as an alias for calculateDaysRemaining to resolve missing export build errors.
+ */
+export function getDaysUntil(deadlineIso?: string | null, referenceDate: Date = new Date()): number {
+  return calculateDaysRemaining(deadlineIso, referenceDate);
+}
+
+/**
  * Formats countdown label (e.g., "12 days left", "Closing tomorrow", "Application closed")
  */
 export function formatCountdown(daysRemaining: number): string {
@@ -93,20 +101,6 @@ export function formatDate(isoString: string): string {
       month: 'short',
       year: 'numeric',
     });
-    // Add this to src/utils/dates.ts
-export const getDaysUntil = (targetDate: string | Date): number => {
-  const target = new Date(targetDate);
-  const today = new Date();
-  
-  // Reset times to midnight to ensure accurate day counting
-  target.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  
-  const diffTime = target.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  return diffDays;
-};
   } catch {
     return isoString;
   }

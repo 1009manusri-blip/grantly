@@ -93,6 +93,20 @@ export function formatDate(isoString: string): string {
       month: 'short',
       year: 'numeric',
     });
+    // Add this to src/utils/dates.ts
+export const getDaysUntil = (targetDate: string | Date): number => {
+  const target = new Date(targetDate);
+  const today = new Date();
+  
+  // Reset times to midnight to ensure accurate day counting
+  target.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  
+  const diffTime = target.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+};
   } catch {
     return isoString;
   }
